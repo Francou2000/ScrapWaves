@@ -66,4 +66,43 @@ public static class EnemyRegistry
 
         return closest != null;
     }
+
+    /// <summary>
+    /// Como <see cref="TryGetClosestOnPlane"/>, pero ignora candidatos cuya diferencia vertical supere <paramref name="maxAbsDeltaY"/>.
+    /// Útil para evitar que el autoataque apunte a pisos muy arriba/abajo.
+    /// </summary>
+    public static bool TryGetClosestOnPlaneWithinVerticalDelta(Vector3 from, float range, float maxAbsDeltaY, out Transform closest)
+    {
+        closest = null;
+        if (range <= 0f || maxAbsDeltaY < 0f)
+            return false;
+
+        float rangeSqr = range * range;
+        float bestSqr = float.MaxValue;
+
+        for (int i = _activeEnemies.Count - 1; i >= 0; i--)
+        {
+            Transform t = _activeEnemies[i];
+            if (t == null)
+            {
+                _activeEnemies.RemoveAt(i);
+                continue;
+            }
+
+            float dy = Mathf.Abs(t.position.y - from.y);
+            if (dy > maxAbsDeltaY)
+                continue;
+
+            Vector3 delta = t.position - from;
+            delta.y = 0f;
+            float sqr = delta.sqrMagnitude;
+            if (sqr > rangeSqr || sqr >= bestSqr)
+                continue;
+
+            bestSqr = sqr;
+            closest = t;
+        }
+
+        return closest != null;
+    }
 }

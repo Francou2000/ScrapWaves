@@ -22,6 +22,37 @@ public class SwarmSpawner : MonoBehaviour
     [SerializeField, Tooltip("Desplazamiento Y del spawn respecto al jugador (solo XZ se randomiza con el anillo).")]
     private float _spawnHeightOffset;
 
+    [Header("Spawn en suelo")]
+    [SerializeField, Tooltip("Raycast principal hacia abajo (por defecto solo Terrain si el mask queda en 0 en Awake).")]
+    private LayerMask _groundRaycastMask;
+
+    [SerializeField, Tooltip("Si el principal falla, se intenta este mask (0 en Awake = Terrain + Default).")]
+    private LayerMask _fallbackGroundRaycastMask;
+
+    [SerializeField, Tooltip("Colliders sólidos para detectar penetración y corregir (0 en Awake = Terrain + Default).")]
+    private LayerMask _overlapSolidMask;
+
+    [SerializeField, Min(1f), Tooltip("Altura sobre la referencia Y desde la que se lanza el raycast hacia abajo.")]
+    private float _raycastStartHeight = 48f;
+
+    [SerializeField, Min(1f), Tooltip("Longitud máxima del raycast hacia abajo.")]
+    private float _raycastMaxDistance = 220f;
+
+    [SerializeField, Min(0f), Tooltip("Preferir superficies con |Y - referencia| <= este valor. 0 = sin preferencia.")]
+    private float _maxAbsSpawnSurfaceDeltaY = 3.5f;
+
+    [SerializeField, Min(0f), Tooltip("Separación del punto de contacto a lo largo de la normal.")]
+    private float _surfaceSeparation = 0.02f;
+
+    [SerializeField, Min(0), Tooltip("Pasos máximos de proyección si el volumen intersecta geometría.")]
+    private int _maxProjectionIterations = 14;
+
+    [SerializeField, Min(0f), Tooltip("Paso vertical por iteración al despegar de geometría.")]
+    private float _resolveStepUp = 0.08f;
+
+    [SerializeField, Min(0f), Tooltip("Paso horizontal por iteración al despegar de geometría.")]
+    private float _resolveStepOut = 0.06f;
+
     private Transform _player;
     private float _nextSpawnTime;
 
@@ -29,6 +60,13 @@ public class SwarmSpawner : MonoBehaviour
     {
         if (_difficultyManager == null)
             _difficultyManager = FindAnyObjectByType<DifficultyManager>();
+
+        if (_groundRaycastMask.value == 0)
+            _groundRaycastMask = LayerMask.GetMask("Terrain");
+        if (_fallbackGroundRaycastMask.value == 0)
+            _fallbackGroundRaycastMask = LayerMask.GetMask("Terrain", "Default");
+        if (_overlapSolidMask.value == 0)
+            _overlapSolidMask = LayerMask.GetMask("Terrain", "Default");
     }
 
     private void Start()
@@ -96,10 +134,39 @@ public class SwarmSpawner : MonoBehaviour
                 _spawnHeightOffset,
                 Mathf.Sin(angle) * radius);
 
-            Vector3 position = _player.position + offset;
-            enemy.transform.SetPositionAndRotation(position, Quaternion.identity);
+            Vector3 ringPos = _player.position + offset;
 
-            Vector3 toPlayer = _player.position - position;
+            CharacterController cc = enemy.GetComponent<CharacterController>();
+            if (cc == null)
+            {
+                enemy.transform.SetPositionAndRotation(ringPos, Quaternion.identity);
+            }
+            else if (!SpawnGroundUtility.TryResolveFootPosition(
+                         new Vector3(ringPos.x, 0f, ringPos.z),
+                         enemy.transform,
+                         cc,
+                         ringPos.y,
+                         _maxAbsSpawnSurfaceDeltaY,
+                         _groundRaycastMask,
+                         _fallbackGroundRaycastMask,
+                         _overlapSolidMask,
+                         _raycastStartHeight,
+                         _raycastMaxDistance,
+                         _surfaceSeparation,
+                         _maxProjectionIterations,
+                         _resolveStepUp,
+                         _resolveStepOut,
+                         out Vector3 foot))
+            {
+                _pool.Release(enemy);
+                continue;
+            }
+            else
+            {
+                enemy.transform.SetPositionAndRotation(foot, Quaternion.identity);
+            }
+
+            Vector3 toPlayer = _player.position - enemy.transform.position;
             toPlayer.y = 0f;
             if (toPlayer.sqrMagnitude > 0.0001f)
                 enemy.transform.rotation = Quaternion.LookRotation(toPlayer.normalized, Vector3.up);

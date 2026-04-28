@@ -331,7 +331,7 @@ public class DebugUI : MonoBehaviour
         txt.fontSize = fontSize;
         txt.color = _textColor;
         txt.alignment = MapTextAnchorToTmp(align);
-        txt.enableWordWrapping = true;
+        txt.textWrappingMode = TextWrappingModes.Normal;
         txt.overflowMode = TextOverflowModes.Overflow;
         txt.raycastTarget = false;
         return txt;

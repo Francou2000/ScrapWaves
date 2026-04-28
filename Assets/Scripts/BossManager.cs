@@ -31,6 +31,37 @@ public class BossManager : MonoBehaviour
     [SerializeField, Tooltip("Loguear spawn, éxito y fallo.")]
     private bool _logState;
 
+    [Header("Spawn en suelo")]
+    [SerializeField, Tooltip("Raycast principal hacia abajo (0 en Awake = solo Terrain).")]
+    private LayerMask _groundRaycastMask;
+
+    [SerializeField, Tooltip("Si el principal falla (0 en Awake = Terrain + Default).")]
+    private LayerMask _fallbackGroundRaycastMask;
+
+    [SerializeField, Tooltip("Colliders sólidos para overlap (0 en Awake = Terrain + Default).")]
+    private LayerMask _overlapSolidMask;
+
+    [SerializeField, Min(1f), Tooltip("Altura sobre la referencia Y del raycast hacia abajo.")]
+    private float _raycastStartHeight = 48f;
+
+    [SerializeField, Min(1f), Tooltip("Longitud máxima del raycast hacia abajo.")]
+    private float _raycastMaxDistance = 220f;
+
+    [SerializeField, Min(0f), Tooltip("Preferir superficies con |Y - referencia| <= este valor. 0 = sin preferencia.")]
+    private float _maxAbsSpawnSurfaceDeltaY = 3.5f;
+
+    [SerializeField, Min(0f), Tooltip("Separación del hit a lo largo de la normal.")]
+    private float _surfaceSeparation = 0.02f;
+
+    [SerializeField, Min(0), Tooltip("Pasos máximos de proyección anti-interior.")]
+    private int _maxProjectionIterations = 14;
+
+    [SerializeField, Min(0f), Tooltip("Paso vertical por iteración.")]
+    private float _resolveStepUp = 0.08f;
+
+    [SerializeField, Min(0f), Tooltip("Paso horizontal por iteración.")]
+    private float _resolveStepOut = 0.06f;
+
     private readonly List<EnemyHealth> _activeBosses = new List<EnemyHealth>(4);
     private readonly Dictionary<EnemyHealth, Action> _onBossDiedHandlers = new Dictionary<EnemyHealth, Action>();
 
@@ -46,6 +77,13 @@ public class BossManager : MonoBehaviour
     {
         if (_overheatManager == null)
             _overheatManager = FindAnyObjectByType<OverheatManager>();
+
+        if (_groundRaycastMask.value == 0)
+            _groundRaycastMask = LayerMask.GetMask("Terrain");
+        if (_fallbackGroundRaycastMask.value == 0)
+            _fallbackGroundRaycastMask = LayerMask.GetMask("Terrain", "Default");
+        if (_overlapSolidMask.value == 0)
+            _overlapSolidMask = LayerMask.GetMask("Terrain", "Default");
     }
 
     private void OnEnable()
@@ -95,10 +133,9 @@ public class BossManager : MonoBehaviour
         {
             float angle = ringOffset + (Mathf.PI * 2f * i) / Mathf.Max(1, count);
             Vector3 offset = new Vector3(Mathf.Cos(angle) * _spawnDistance, 0f, Mathf.Sin(angle) * _spawnDistance);
-            Vector3 pos = player.position + offset;
-            pos.y = player.position.y;
+            Vector3 ringPos = player.position + offset;
 
-            GameObject go = Instantiate(_bossPrefab, pos, Quaternion.identity);
+            GameObject go = Instantiate(_bossPrefab, ringPos, Quaternion.identity);
             EnemyHealth health = go.GetComponent<EnemyHealth>();
             if (health == null)
             {
@@ -106,6 +143,44 @@ public class BossManager : MonoBehaviour
                     Debug.LogError("BossManager: el prefab debe tener EnemyHealth.", this);
                 Destroy(go);
                 continue;
+            }
+
+            CharacterController cc = go.GetComponent<CharacterController>();
+            if (cc == null)
+            {
+                if (_logState)
+                    Debug.LogError("BossManager: el prefab del boss debe tener CharacterController (EnemyFollow lo requiere).", this);
+                Destroy(go);
+                continue;
+            }
+
+            if (!SpawnGroundUtility.TryResolveFootPosition(
+                    new Vector3(ringPos.x, 0f, ringPos.z),
+                    go.transform,
+                    cc,
+                    ringPos.y,
+                    _maxAbsSpawnSurfaceDeltaY,
+                    _groundRaycastMask,
+                    _fallbackGroundRaycastMask,
+                    _overlapSolidMask,
+                    _raycastStartHeight,
+                    _raycastMaxDistance,
+                    _surfaceSeparation,
+                    _maxProjectionIterations,
+                    _resolveStepUp,
+                    _resolveStepOut,
+                    out Vector3 foot))
+            {
+                if (_logState)
+                    Debug.LogWarning("BossManager: no se encontró suelo bajo el punto de spawn; se spawnea igual (sin snap a suelo).", this);
+
+                // Fallback al comportamiento anterior: no bloquear el spawn del boss si el suelo no está debajo
+                // (por ejemplo, anillo cae fuera del terreno o hay vacío bajo ese XZ).
+                go.transform.position = ringPos;
+            }
+            else
+            {
+                go.transform.position = foot;
             }
 
             health.ApplyConfiguredMaxHealth(_bossMaxHealth);
@@ -120,7 +195,7 @@ public class BossManager : MonoBehaviour
 
             _activeBosses.Add(health);
 
-            Vector3 toPlayer = player.position - pos;
+            Vector3 toPlayer = player.position - go.transform.position;
             toPlayer.y = 0f;
             if (toPlayer.sqrMagnitude > 0.0001f)
                 go.transform.rotation = Quaternion.LookRotation(toPlayer.normalized, Vector3.up);

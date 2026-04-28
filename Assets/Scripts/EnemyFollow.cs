@@ -1,5 +1,6 @@
 using UnityEngine;
 
+[RequireComponent(typeof(CharacterController))]
 public class EnemyFollow : MonoBehaviour
 {
     private const int MaxSeparationNeighbors = 32;
@@ -20,16 +21,33 @@ public class EnemyFollow : MonoBehaviour
     [SerializeField, Tooltip("Grados por segundo al girar hacia la dirección de desplazamiento.")]
     private float _rotationSpeed = 540f;
 
+    [SerializeField, Tooltip("Aceleración vertical cuando no está trepando (CharacterController).")]
+    private float _gravity = -25f;
+
     [SerializeField, Min(0f), Tooltip("Peso del empuje lateral respecto a perseguir al jugador. 0 = sin separación (comportamiento anterior).")]
     private float _separationWeight = 0.55f;
 
     [SerializeField, Min(0.05f), Tooltip("Radio en el que se buscan otros enemigos para empujar (OverlapSphere).")]
     private float _separationRadius = 1.1f;
 
+    [Header("Climb (trepar)")]
+    [SerializeField, Min(0.01f), Tooltip("Distancia del raycast frontal para detectar pared u otro enemigo.")]
+    private float _forwardRayDistance = 0.45f;
+
+    [SerializeField, Min(0f), Tooltip("Altura desde el suelo (local) para lanzar el raycast frontal.")]
+    private float _forwardRayHeight = 0.6f;
+
+    [SerializeField, Min(0f), Tooltip("Velocidad de subida (unidades/segundo) cuando hay obstáculo delante.")]
+    private float _climbSpeed = 4.5f;
+
+    [SerializeField, Tooltip("Capas consideradas obstáculo para trepar (por defecto: todo).")]
+    private LayerMask _climbObstacleMask = ~0;
+
     private float _minFollowDistanceSqr;
     private float _separationRadiusSqr;
-    private Rigidbody _rigidbody;
+    private CharacterController _characterController;
     private Collider[] _overlapBuffer;
+    private float _verticalVelocity;
 
     private void Awake()
     {
@@ -38,7 +56,7 @@ public class EnemyFollow : MonoBehaviour
         CacheDerived();
         if (_target == null)
             _target = PlayerMovement.PlayerTransform;
-        _rigidbody = GetComponent<Rigidbody>();
+        _characterController = GetComponent<CharacterController>();
         _overlapBuffer = new Collider[MaxSeparationNeighbors];
     }
 
@@ -83,6 +101,9 @@ public class EnemyFollow : MonoBehaviour
         if (_target == null)
             return;
 
+        if (_characterController == null)
+            return;
+
         Vector3 toTarget = _target.position - transform.position;
         toTarget.y = 0f;
 
@@ -106,19 +127,46 @@ public class EnemyFollow : MonoBehaviour
         if (_pooled != null)
             speed *= OverheatSwarmBoost.SpeedMultiplier;
 
-        transform.position += moveDir * (speed * Time.deltaTime);
+        bool isClimbing = ShouldClimb(moveDir);
+        if (isClimbing)
+        {
+            _verticalVelocity = _climbSpeed;
+        }
+        else
+        {
+            if (_characterController.isGrounded && _verticalVelocity < 0f)
+                _verticalVelocity = -1f;
+            else
+                _verticalVelocity += _gravity * Time.deltaTime;
+        }
+
+        Vector3 velocity = moveDir * speed;
+        velocity.y = _verticalVelocity;
+        _characterController.Move(velocity * Time.deltaTime);
 
         Quaternion targetRotation = Quaternion.LookRotation(moveDir);
         transform.rotation = Quaternion.RotateTowards(
             transform.rotation,
             targetRotation,
             _rotationSpeed * Time.deltaTime);
+    }
 
-        if (_rigidbody != null && _rigidbody.isKinematic)
+    private bool ShouldClimb(Vector3 moveDir)
+    {
+        if (_forwardRayDistance <= 0f || _climbSpeed <= 0f)
+            return false;
+
+        Vector3 origin = transform.position + Vector3.up * Mathf.Max(0f, _forwardRayHeight);
+        if (Physics.Raycast(origin, moveDir, out RaycastHit hit, _forwardRayDistance, _climbObstacleMask, QueryTriggerInteraction.Ignore))
         {
-            _rigidbody.position = transform.position;
-            _rigidbody.rotation = transform.rotation;
+            if (hit.transform == null)
+                return false;
+            if (hit.transform.root == transform.root)
+                return false;
+            return true;
         }
+
+        return false;
     }
 
     private Vector3 ComputeSeparationDirection()

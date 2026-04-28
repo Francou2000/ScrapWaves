@@ -18,6 +18,9 @@ public class PlayerMovement : MonoBehaviour
     [SerializeField, Tooltip("Aceleración vertical cuando no hay suelo (CharacterController).")]
     private float _gravity = -25f;
 
+    [SerializeField, Min(0.1f), Tooltip("Altura objetivo del salto (en unidades).")]
+    private float _jumpHeight = 1.5f;
+
     private CharacterController _characterController;
     private float _verticalVelocity;
     private PlayerStats _stats;
@@ -46,6 +49,8 @@ public class PlayerMovement : MonoBehaviour
         if (_cameraTransform == null)
             return;
 
+        Keyboard keyboard = Keyboard.current;
+
         Vector2 input = ReadWasd();
         if (input.sqrMagnitude > 1f)
             input.Normalize();
@@ -65,10 +70,18 @@ public class PlayerMovement : MonoBehaviour
                 _rotationSpeed * Time.deltaTime);
         }
 
-        if (_characterController.isGrounded && _verticalVelocity < 0f)
-            _verticalVelocity = -1f;
+        if (_characterController.isGrounded)
+        {
+            if (_verticalVelocity < 0f)
+                _verticalVelocity = -1f;
+
+            if (keyboard != null && keyboard.spaceKey.wasPressedThisFrame)
+                _verticalVelocity = Mathf.Sqrt(_jumpHeight * -2f * _gravity);
+        }
         else
+        {
             _verticalVelocity += _gravity * Time.deltaTime;
+        }
 
         Vector3 velocity = moveDirection * _stats.GetMoveSpeed();
         velocity.y = _verticalVelocity;

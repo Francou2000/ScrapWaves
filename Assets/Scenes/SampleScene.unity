@@ -4070,6 +4070,22 @@ MonoBehaviour:
   _maxActiveEnemies: 200
   _spawnOnStart: 1
   _spawnHeightOffset: 0
+  _groundRaycastMask:
+    serializedVersion: 2
+    m_Bits: 0
+  _fallbackGroundRaycastMask:
+    serializedVersion: 2
+    m_Bits: 0
+  _overlapSolidMask:
+    serializedVersion: 2
+    m_Bits: 0
+  _raycastStartHeight: 48
+  _raycastMaxDistance: 220
+  _maxAbsSpawnSurfaceDeltaY: 3.5
+  _surfaceSeparation: 0.02
+  _maxProjectionIterations: 14
+  _resolveStepUp: 0.08
+  _resolveStepOut: 0.06
 --- !u!4 &1586107779
 Transform:
   m_ObjectHideFlags: 0
@@ -5046,6 +5062,22 @@ MonoBehaviour:
   _multiBossOverheatCycle: 3
   _bossCountOnMultiCycle: 2
   _logState: 0
+  _groundRaycastMask:
+    serializedVersion: 2
+    m_Bits: 0
+  _fallbackGroundRaycastMask:
+    serializedVersion: 2
+    m_Bits: 0
+  _overlapSolidMask:
+    serializedVersion: 2
+    m_Bits: 0
+  _raycastStartHeight: 48
+  _raycastMaxDistance: 220
+  _maxAbsSpawnSurfaceDeltaY: 3.5
+  _surfaceSeparation: 0.02
+  _maxProjectionIterations: 14
+  _resolveStepUp: 0.08
+  _resolveStepOut: 0.06
 --- !u!1 &2137547700
 GameObject:
   m_ObjectHideFlags: 0
@@ -5179,6 +5211,10 @@ PrefabInstance:
     - target: {fileID: 4876252261270809814, guid: 8996325517cf50a4cb685418ded6441a, type: 3}
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6535847504202732059, guid: 8996325517cf50a4cb685418ded6441a, type: 3}
+      propertyPath: _detectionRange
+      value: 8
       objectReference: {fileID: 0}
     - target: {fileID: 6535847504202732059, guid: 8996325517cf50a4cb685418ded6441a, type: 3}
       propertyPath: _projectilePool

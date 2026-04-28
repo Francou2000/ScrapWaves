@@ -77,6 +77,14 @@ public class Projectile : MonoBehaviour
         if (_consumed)
             return;
 
+        // Si choca contra el entorno (Terrain), se destruye sin aplicar daño.
+        int terrainLayer = LayerMask.NameToLayer("Terrain");
+        if (terrainLayer >= 0 && other.gameObject.layer == terrainLayer)
+        {
+            DespawnOrDestroy();
+            return;
+        }
+
         IDamageable damageable = other.GetComponentInParent<IDamageable>();
         if (damageable != null)
             damageable.ApplyDamage(_damage);

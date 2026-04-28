@@ -12,6 +12,9 @@ public class PlayerAutoAttack : MonoBehaviour
     [SerializeField, Min(0.1f), Tooltip("Radio en XZ desde la posición del jugador para candidatos a objetivo.")]
     private float _detectionRange = 12f;
 
+    [SerializeField, Min(0f), Tooltip("Si la diferencia en Y es mayor que esto, se ignora el objetivo y se busca otro a altura similar.")]
+    private float _maxAimVerticalDelta = 2.5f;
+
     private float _fireCooldown;
     private PlayerStats _stats;
 
@@ -36,7 +39,7 @@ public class PlayerAutoAttack : MonoBehaviour
         if (_projectilePool == null || _firePoint == null)
             return;
 
-        if (!EnemyRegistry.TryGetClosestOnPlane(transform.position, _detectionRange, out Transform target))
+        if (!EnemyRegistry.TryGetClosestOnPlaneWithinVerticalDelta(transform.position, _detectionRange, _maxAimVerticalDelta, out Transform target))
             return;
 
         // Dirección 3D hacia el enemigo (incluye altura); el registro sigue eligiendo el más cercano en XZ.
