@@ -1,0 +1,206 @@
+using System;
+using System.Collections.Generic;
+using UnityEngine;
+
+/// <summary>
+/// En cada Overheat spawnea uno o más bosses. A partir del ciclo configurado puede spawnear varios a la vez.
+/// Cuando el último boss de la fase muere, notifica a <see cref="OverheatManager"/>.
+/// </summary>
+[DisallowMultipleComponent]
+[DefaultExecutionOrder(-31)]
+public class BossManager : MonoBehaviour
+{
+    [SerializeField, Tooltip("Gestor de Overheat (misma duración de fase que el temporizador del jugador).")]
+    private OverheatManager _overheatManager;
+
+    [SerializeField, Tooltip("Prefab raíz del boss: EnemyHealth + EnemyFollow; sin SwarmPooledEnemy.")]
+    private GameObject _bossPrefab;
+
+    [SerializeField, Min(1), Tooltip("Vida máxima aplicada al spawn (sustituye la del prefab).")]
+    private int _bossMaxHealth = 400;
+
+    [SerializeField, Min(2f), Tooltip("Distancia en XZ respecto al jugador donde aparece cada boss.")]
+    private float _spawnDistance = 12f;
+
+    [SerializeField, Min(1), Tooltip("Número de Overheat (1 = el primero, 2 = el segundo…). En este ciclo se spawnean varios bosses a la vez.")]
+    private int _multiBossOverheatCycle = 3;
+
+    [SerializeField, Min(2), Tooltip("Cuántos bosses spawnear en el ciclo multi (p. ej. 2 en el 3.er Overheat).")]
+    private int _bossCountOnMultiCycle = 2;
+
+    [SerializeField, Tooltip("Loguear spawn, éxito y fallo.")]
+    private bool _logState;
+
+    private readonly List<EnemyHealth> _activeBosses = new List<EnemyHealth>(4);
+    private readonly Dictionary<EnemyHealth, Action> _onBossDiedHandlers = new Dictionary<EnemyHealth, Action>();
+
+    private int _overheatCycleIndex;
+
+    /// <summary>Cada vez que un boss es derrotado (para victoria global en <see cref="GameManager"/>).</summary>
+    public event Action OnBossDefeated;
+
+    /// <summary>Ciclos de Overheat iniciados (1-based durante la fase actual tras incrementar).</summary>
+    public int CurrentOverheatCycle => _overheatCycleIndex;
+
+    private void Awake()
+    {
+        if (_overheatManager == null)
+            _overheatManager = FindAnyObjectByType<OverheatManager>();
+    }
+
+    private void OnEnable()
+    {
+        if (_overheatManager != null)
+        {
+            _overheatManager.OnOverheatStarted += OnOverheatStarted;
+            _overheatManager.OnOverheatFinished += OnOverheatFinished;
+        }
+    }
+
+    private void OnDisable()
+    {
+        if (_overheatManager != null)
+        {
+            _overheatManager.OnOverheatStarted -= OnOverheatStarted;
+            _overheatManager.OnOverheatFinished -= OnOverheatFinished;
+        }
+
+        DespawnAllBossesImmediate();
+    }
+
+    private void OnOverheatStarted()
+    {
+        _overheatCycleIndex++;
+        DespawnAllBossesImmediate();
+
+        if (_bossPrefab == null)
+        {
+            if (_logState)
+                Debug.LogWarning("BossManager: asigna prefab de boss.", this);
+            return;
+        }
+
+        Transform player = PlayerMovement.PlayerTransform;
+        if (player == null)
+        {
+            if (_logState)
+                Debug.LogWarning("BossManager: no hay jugador; no se spawnea boss.", this);
+            return;
+        }
+
+        int count = GetBossSpawnCountForCurrentCycle();
+        float ringOffset = UnityEngine.Random.Range(0f, Mathf.PI * 2f);
+
+        for (int i = 0; i < count; i++)
+        {
+            float angle = ringOffset + (Mathf.PI * 2f * i) / Mathf.Max(1, count);
+            Vector3 offset = new Vector3(Mathf.Cos(angle) * _spawnDistance, 0f, Mathf.Sin(angle) * _spawnDistance);
+            Vector3 pos = player.position + offset;
+            pos.y = player.position.y;
+
+            GameObject go = Instantiate(_bossPrefab, pos, Quaternion.identity);
+            EnemyHealth health = go.GetComponent<EnemyHealth>();
+            if (health == null)
+            {
+                if (_logState)
+                    Debug.LogError("BossManager: el prefab debe tener EnemyHealth.", this);
+                Destroy(go);
+                continue;
+            }
+
+            health.ApplyConfiguredMaxHealth(_bossMaxHealth);
+
+            EnemyHealth captured = health;
+            Action handler = () => OnBossInstanceDied(captured);
+            _onBossDiedHandlers[health] = handler;
+            health.OnDied += handler;
+
+            if (!go.activeSelf)
+                go.SetActive(true);
+
+            _activeBosses.Add(health);
+
+            Vector3 toPlayer = player.position - pos;
+            toPlayer.y = 0f;
+            if (toPlayer.sqrMagnitude > 0.0001f)
+                go.transform.rotation = Quaternion.LookRotation(toPlayer.normalized, Vector3.up);
+        }
+
+        if (_logState && _activeBosses.Count > 0)
+            Debug.Log($"Boss spawn x{_activeBosses.Count} (ciclo Overheat #{_overheatCycleIndex})", this);
+    }
+
+    private int GetBossSpawnCountForCurrentCycle()
+    {
+        if (_overheatCycleIndex == _multiBossOverheatCycle && _bossCountOnMultiCycle > 1)
+            return _bossCountOnMultiCycle;
+        return 1;
+    }
+
+    private void OnBossInstanceDied(EnemyHealth health)
+    {
+        if (health == null)
+            return;
+
+        if (_onBossDiedHandlers.TryGetValue(health, out Action handler))
+        {
+            health.OnDied -= handler;
+            _onBossDiedHandlers.Remove(health);
+        }
+
+        _activeBosses.Remove(health);
+        OnBossDefeated?.Invoke();
+
+        if (health.gameObject != null)
+            Destroy(health.gameObject, 0.05f);
+
+        if (_activeBosses.Count == 0 && _overheatManager != null && _overheatManager.IsOverheating)
+            _overheatManager.NotifyBossDefeatedEarly();
+
+        if (_logState)
+            Debug.Log("Boss derrotado.", this);
+    }
+
+    private void OnOverheatFinished(OverheatEndReason reason)
+    {
+        if (reason == OverheatEndReason.TimeExpired && _activeBosses.Count > 0 && _logState)
+            Debug.Log("Tiempo de Overheat agotado: fallo (boss(es) sigue(n) vivo(s)).", this);
+
+        DespawnAllBossesImmediate();
+    }
+
+    private void DespawnAllBossesImmediate()
+    {
+        for (int i = _activeBosses.Count - 1; i >= 0; i--)
+        {
+            EnemyHealth h = _activeBosses[i];
+            if (h == null)
+                continue;
+
+            if (_onBossDiedHandlers.TryGetValue(h, out Action handler))
+            {
+                h.OnDied -= handler;
+                _onBossDiedHandlers.Remove(h);
+            }
+
+            if (h.gameObject != null)
+                Destroy(h.gameObject);
+        }
+
+        _activeBosses.Clear();
+    }
+
+#if UNITY_EDITOR
+    private void OnValidate()
+    {
+        if (_bossMaxHealth < 1)
+            _bossMaxHealth = 1;
+        if (_spawnDistance < 2f)
+            _spawnDistance = 2f;
+        if (_multiBossOverheatCycle < 1)
+            _multiBossOverheatCycle = 1;
+        if (_bossCountOnMultiCycle < 2)
+            _bossCountOnMultiCycle = 2;
+    }
+#endif
+}

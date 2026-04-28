@@ -1,0 +1,67 @@
+using UnityEngine;
+
+/// <summary>
+/// Lógica de una bolita de XP en el mundo: imán opcional y recogida por proximidad al jugador (<see cref="XPPickup"/>).
+/// </summary>
+public class XPDrop : MonoBehaviour
+{
+    [SerializeField, Min(1), Tooltip("Valor por defecto si el pool no pasa cantidad (no debería ocurrir en uso normal).")]
+    private int _defaultExperience = 1;
+
+    [SerializeField, Min(0.01f), Tooltip("Distancia al jugador para consumir la bolita.")]
+    private float _pickupRadius = 0.75f;
+
+    [SerializeField, Min(0f), Tooltip("Si el jugador está dentro de este radio, la bolita se mueve hacia él. 0 = sin imán.")]
+    private float _magnetRadius = 7f;
+
+    [SerializeField, Min(0f), Tooltip("Velocidad de movimiento cuando el imán está activo.")]
+    private float _magnetSpeed = 14f;
+
+    private int _experience;
+    private XPPool _pool;
+    private XPPoolMember _member;
+
+    private void Awake()
+    {
+        _member = GetComponent<XPPoolMember>();
+    }
+
+    private void OnValidate()
+    {
+        if (_magnetRadius > 0f && _magnetRadius < _pickupRadius)
+            _magnetRadius = _pickupRadius;
+    }
+
+    /// <summary>Llamado por <see cref="XPPool"/> al sacar la instancia del pool.</summary>
+    public void ActivateFromPool(XPPool pool, int experienceAmount)
+    {
+        _pool = pool;
+        _experience = experienceAmount > 0 ? experienceAmount : _defaultExperience;
+    }
+
+    private void Update()
+    {
+        XPPickup pickup = XPPickup.Instance;
+        if (pickup == null)
+            return;
+
+        Vector3 target = pickup.PickupPoint;
+        float dist = Vector3.Distance(transform.position, target);
+
+        if (dist <= _pickupRadius)
+        {
+            pickup.GrantExperience(_experience);
+            if (_member != null)
+                _member.Despawn();
+            else if (_pool != null)
+                _pool.Release(gameObject);
+            return;
+        }
+
+        if (_magnetRadius <= 0f || _magnetSpeed <= 0f)
+            return;
+
+        if (dist <= _magnetRadius && dist > _pickupRadius)
+            transform.position = Vector3.MoveTowards(transform.position, target, _magnetSpeed * Time.deltaTime);
+    }
+}
