@@ -17,11 +17,13 @@ public class SwarmPooledEnemy : MonoBehaviour
     public void NotifySpawned()
     {
         GetComponent<EnemyFollow>()?.PrepareForSpawn();
+        GetComponent<SimpleFollow>()?.PrepareForSpawn();
     }
 
     public void NotifyDespawned()
     {
         GetComponent<EnemyFollow>()?.OnDespawned();
+        GetComponent<SimpleFollow>()?.OnDespawned();
     }
 
     public void Despawn()

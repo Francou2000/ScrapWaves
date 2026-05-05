@@ -1,10 +1,10 @@
 using UnityEngine;
 
 /// <summary>
-/// Debe estar en el mismo GameObject que <see cref="CharacterController"/>.
-/// El empuje y el contacto real del CC no siempre disparan triggers en hijos; este callback es la vía fiable.
+/// Receptor de daño por contacto contra enemigos.
+/// - Si hay <see cref="CharacterController"/>, usa <see cref="OnControllerColliderHit"/> (comportamiento anterior).
+/// - Si el jugador usa físicas (Rigidbody), usa colisiones (OnCollisionEnter/Stay).
 /// </summary>
-[RequireComponent(typeof(CharacterController))]
 public class PlayerContactDamageReceiver : MonoBehaviour
 {
     [SerializeField] private PlayerHealth _playerHealth;
@@ -31,5 +31,28 @@ public class PlayerContactDamageReceiver : MonoBehaviour
             return;
 
         contact.TryApplyContactDamage(_playerHealth);
+    }
+
+    private void OnCollisionEnter(Collision collision)
+    {
+        TryApplyFromCollider(collision.collider, "CollisionEnter");
+    }
+
+    private void OnCollisionStay(Collision collision)
+    {
+        TryApplyFromCollider(collision.collider, "CollisionStay");
+    }
+
+    private void TryApplyFromCollider(Collider other, string phase)
+    {
+        if (_playerHealth == null || !_playerHealth.IsAlive || other == null)
+            return;
+
+        if (_logContactDebug)
+            Debug.Log($"[PlayerContactDamageReceiver] {phase}: {other.name} (root={other.transform.root.name})", other);
+
+        EnemyContactDamage contact = other.GetComponentInParent<EnemyContactDamage>();
+        if (contact != null)
+            contact.TryApplyContactDamage(_playerHealth);
     }
 }

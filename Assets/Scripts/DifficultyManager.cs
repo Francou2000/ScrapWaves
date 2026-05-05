@@ -122,6 +122,9 @@ public class DifficultyManager : MonoBehaviour
 
         if (enemy.TryGetComponent(out EnemyFollow follow))
             follow.ConfigureDifficultyForSpawn(s);
+
+        if (enemy.TryGetComponent(out SimpleFollow simpleFollow))
+            simpleFollow.ConfigureDifficultyForSpawn(s);
     }
 
     private static AnimationCurve DefaultIntensityCurve()

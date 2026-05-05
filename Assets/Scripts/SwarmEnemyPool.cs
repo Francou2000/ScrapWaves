@@ -5,7 +5,7 @@ using UnityEngine.SceneManagement;
 [DefaultExecutionOrder(-40)]
 public class SwarmEnemyPool : MonoBehaviour
 {
-    [SerializeField, Tooltip("Prefab raíz del enemigo (debe incluir EnemyFollow).")]
+    [SerializeField, Tooltip("Prefab raíz del enemigo (EnemyPro recomendado: SimpleFollow + Rigidbody; EnemyFollow legacy).")]
     private GameObject _enemyPrefab;
 
     [SerializeField, Tooltip("Padre de los clones; si es null, se crea un contenedor en runtime en la escena (evita el aviso de parent persistente).")]
