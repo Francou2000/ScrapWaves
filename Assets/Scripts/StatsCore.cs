@@ -35,6 +35,7 @@ public class StatModifier
     public StatUpgradeSource Source;
     public object SourceReference;
 
+    // Builds a modifier record with value, source type, and optional source reference.
     public StatModifier(StatType statType, float value, StatUpgradeSource source, object sourceReference = null)
     {
         StatType = statType;
@@ -67,9 +68,14 @@ public class RuntimeStat
         }
     }
 
+    // Creates runtime stat state from a configured stat definition asset.
     public RuntimeStat(StatDefinition definition) => _definition = definition;
+    // Overrides base stat value, useful for syncing external authoritative values.
     public void SetBaseValue(float value) { _baseOverride = value; _useBaseOverride = true; }
+    // Adds one modifier affecting current stat value calculations.
     public void AddModifier(StatModifier modifier) => _modifiers.Add(modifier);
+    // Removes modifiers associated with one specific source object instance.
     public void RemoveModifiersFromSource(object sourceReference) => _modifiers.RemoveAll(m => m.SourceReference == sourceReference);
+    // Removes all modifiers belonging to a source category.
     public void ClearModifiersFromSourceType(StatUpgradeSource source) => _modifiers.RemoveAll(m => m.Source == source);
 }

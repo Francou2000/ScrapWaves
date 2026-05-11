@@ -12,12 +12,14 @@ public class PlayerStats : MonoBehaviour
 
     public event Action<StatType, float> OnStatChanged;
 
+    // Initializes stat dictionary and synchronizes health-derived base values on startup.
     private void Awake()
     {
         InitializeStats();
         SyncBaseMaxHealthFromHealthComponent();
     }
 
+    // Copies PlayerHealth max value into MaxHealth stat base override.
     private void SyncBaseMaxHealthFromHealthComponent()
     {
         if (!TryGetComponent(out PlayerHealth health)) return;
@@ -28,6 +30,7 @@ public class PlayerStats : MonoBehaviour
         }
     }
 
+    // Builds runtime stat map from assigned stat definition assets.
     private void InitializeStats()
     {
         _stats.Clear();
@@ -45,6 +48,7 @@ public class PlayerStats : MonoBehaviour
         }
     }
 
+    // Returns current stat value or zero with warning if missing.
     public float GetStat(StatType statType)
     {
         if (_stats.TryGetValue(statType, out RuntimeStat stat))
@@ -54,15 +58,19 @@ public class PlayerStats : MonoBehaviour
         return 0f;
     }
 
+    // Returns floored integer version of a stat query.
     public int GetStatInt(StatType statType) => Mathf.FloorToInt(GetStat(statType));
 
+    // Returns definition asset for a stat, if configured.
     public StatDefinition GetDefinition(StatType statType)
     {
         return _stats.TryGetValue(statType, out RuntimeStat stat) ? stat.Definition : null;
     }
 
+    // Exposes all configured stat definitions for consumers like level-up logic.
     public IReadOnlyList<StatDefinition> GetAllDefinitions() => _statDefinitions;
 
+    // Applies a modifier to one stat and notifies listeners.
     public void AddModifier(StatModifier modifier)
     {
         if (!_stats.TryGetValue(modifier.StatType, out RuntimeStat stat))
@@ -75,6 +83,7 @@ public class PlayerStats : MonoBehaviour
         OnStatChanged?.Invoke(modifier.StatType, stat.CurrentValue);
     }
 
+    // Removes all modifiers tied to one specific source object.
     public void RemoveModifiersFromSource(object sourceReference)
     {
         foreach (RuntimeStat stat in _stats.Values)
@@ -83,6 +92,7 @@ public class PlayerStats : MonoBehaviour
         RecalculateAllStats();
     }
 
+    // Removes all modifiers that share the same source category.
     public void ClearModifiersFromSourceType(StatUpgradeSource source)
     {
         foreach (RuntimeStat stat in _stats.Values)
@@ -91,6 +101,7 @@ public class PlayerStats : MonoBehaviour
         RecalculateAllStats();
     }
 
+    // Broadcasts updated values for every stat after bulk changes.
     private void RecalculateAllStats()
     {
         foreach (KeyValuePair<StatType, RuntimeStat> pair in _stats)
@@ -98,7 +109,9 @@ public class PlayerStats : MonoBehaviour
     }
 
     // Compatibilidad temporal con sistemas existentes.
+    // Compatibility accessor returning current flat damage as integer.
     public int GetDamage() => Mathf.Max(1, Mathf.RoundToInt(GetStat(StatType.DamageFlat)));
+    // Compatibility accessor deriving fire interval from base interval and attack speed.
     public float GetFireInterval()
     {
         float rateMult = Mathf.Max(0.01f, GetStat(StatType.AttackSpeedMultiplier));
@@ -106,9 +119,12 @@ public class PlayerStats : MonoBehaviour
         return baseInterval / rateMult;
     }
 
+    // Compatibility accessor returning movement speed with safety clamp.
     public float GetMoveSpeed() => Mathf.Max(0.1f, GetStat(StatType.MovementSpeed));
+    // Compatibility accessor returning total max health as integer.
     public int GetMaxHealthTotal() => Mathf.Max(1, Mathf.RoundToInt(GetStat(StatType.MaxHealth)));
 
+    // Applies temporary attack speed modifier used by runtime effects.
     public void SetRuntimeFireRateMultiplier(float multiplier)
     {
         float delta = Mathf.Max(0.01f, multiplier) - 1f;
@@ -116,6 +132,7 @@ public class PlayerStats : MonoBehaviour
         AddModifier(new StatModifier(StatType.AttackSpeedMultiplier, delta, StatUpgradeSource.TemporaryEffect, this));
     }
 
+    // Applies legacy upgrade asset by mapping old stat types.
     public void ApplyUpgrade(Upgrade upgrade)
     {
         if (upgrade == null) return;

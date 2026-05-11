@@ -9,12 +9,14 @@ public class PlayerStatsLevelUpHandler : MonoBehaviour
 
     private readonly Dictionary<StatType, int> _rouletteWeights = new();
 
+    // Resolves dependencies and initializes roulette weights at startup.
     private void Awake()
     {
         if (_playerStats == null) _playerStats = GetComponent<PlayerStats>();
         InitializeRouletteWeights();
     }
 
+    // Seeds roulette weights for stats allowed to level up.
     private void InitializeRouletteWeights()
     {
         _rouletteWeights.Clear();
@@ -27,6 +29,7 @@ public class PlayerStatsLevelUpHandler : MonoBehaviour
         }
     }
 
+    // Applies multiple weighted stat upgrades when a new level is reached.
     public void ApplyLevelUpStats(int newLevel)
     {
         if (_rouletteWeights.Count == 0) return;
@@ -45,6 +48,7 @@ public class PlayerStatsLevelUpHandler : MonoBehaviour
         IncreaseWeightsForUnselectedStats(selectedThisLevel);
     }
 
+    // Selects one stat using weighted random roulette selection.
     private StatType RollStat()
     {
         int totalWeight = 0;
@@ -63,6 +67,7 @@ public class PlayerStatsLevelUpHandler : MonoBehaviour
         return StatType.MaxHealth;
     }
 
+    // Computes and applies one level-up modifier to selected stat.
     private void ApplyUpgradeToStat(StatType statType, int newLevel)
     {
         StatDefinition definition = _playerStats.GetDefinition(statType);
@@ -72,6 +77,7 @@ public class PlayerStatsLevelUpHandler : MonoBehaviour
         _playerStats.AddModifier(new StatModifier(statType, amount, StatUpgradeSource.LevelUp));
     }
 
+    // Increases weights for stats not selected this level-up cycle.
     private void IncreaseWeightsForUnselectedStats(HashSet<StatType> selectedThisLevel)
     {
         List<StatType> allStats = new(_rouletteWeights.Keys);
@@ -79,6 +85,7 @@ public class PlayerStatsLevelUpHandler : MonoBehaviour
             if (!selectedThisLevel.Contains(statType)) _rouletteWeights[statType] += 1;
     }
 
+    // Returns how many stat upgrades to grant for a level.
     private static int GetUpgradeCountForLevel(int level)
     {
         if (level >= 36) return 20;
@@ -94,8 +101,10 @@ public class PlayerStatsLevelUpHandler : MonoBehaviour
 
 public static class StatMath
 {
+    // Calculates upgrade scaling factor based on current level and cap.
     public static float CalculateLevelScale(int currentLevel, int levelCap) => 1f + (currentLevel / (levelCap / 2f));
 
+    // Calculates final upgrade amount including scaling and random variation.
     public static float CalculateStatUpgradeAmount(float baseUpgradeAmount, int currentLevel, int levelCap)
     {
         float levelScale = CalculateLevelScale(currentLevel, levelCap);
