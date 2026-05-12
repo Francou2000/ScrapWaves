@@ -24,8 +24,8 @@ public class PlayerMovement : MonoBehaviour
 
     [SerializeField] private Transform _cameraTransform;
     [SerializeField] private float _rotationSpeed = 540f;
-    [SerializeField, Min(0.1f)] private float _baseMoveAcceleration = 55f;
-    [SerializeField, Min(0.1f)] private float _baseFriction = 25f;
+    [SerializeField, Min(0.1f)] private float _baseMoveAcceleration = 38f;
+    [SerializeField, Min(0.1f)] private float _baseFriction = 18f;
     [SerializeField, Min(0f)] private float _groundCheckExtraDistance = 0.08f;
     [SerializeField] private LayerMask _groundMask = ~0;
     [SerializeField, Min(0f)] private float _airFrictionMultiplier = 0.4f;
@@ -36,6 +36,8 @@ public class PlayerMovement : MonoBehaviour
     [SerializeField, Min(0.01f)] private float _airborneDashRegenTime = 4f;
     [SerializeField, Min(0f)] private float _slideSpeedThreshold = 5f;
     [SerializeField, Min(0f)] private float _minSlideSpeed = 2f;
+    [SerializeField, Min(0f)] private float _postDashFrictionMultiplier = 0.3f;
+    [SerializeField, Min(0f)] private float _postDashFrictionDuration = 0.18f;
 
     private Rigidbody _rb;
     private PlayerStats _stats;
@@ -57,6 +59,7 @@ public class PlayerMovement : MonoBehaviour
 
     private float _dashTimer;
     private float _dashRegenTimer;
+    private float _postDashFrictionTimer;
     private int _remainingAirJumps;
     private int _currentDashCharges;
 
@@ -121,9 +124,11 @@ public class PlayerMovement : MonoBehaviour
         else
         {
             HandleMovement();
+            ApplyPlanarSpeedCap();
             HandleFriction();
         }
 
+        TickPostDashFrictionWindow();
         HandleDashRegeneration();
     }
 
@@ -169,7 +174,12 @@ public class PlayerMovement : MonoBehaviour
         if (_isCrouching) acceleration *= _crouchAccelerationMultiplier;
 
         if (_moveDirectionWorld.sqrMagnitude > 0.0001f)
-            _rb.AddForce(_moveDirectionWorld * acceleration, ForceMode.Acceleration);
+        {
+            float maxSpeed = Mathf.Max(0.1f, _stats.GetMoveSpeed());
+            float speedRatio = Mathf.Clamp01(CurrentPlanarSpeed() / maxSpeed);
+            float speedScaledAcceleration = acceleration * Mathf.Lerp(1f, 0.35f, speedRatio);
+            _rb.AddForce(_moveDirectionWorld * speedScaledAcceleration, ForceMode.Acceleration);
+        }
     }
 
     // Apply velocity-opposing friction adjusted by grounded, slide, and dash states.
@@ -181,11 +191,31 @@ public class PlayerMovement : MonoBehaviour
         float friction = _baseFriction;
         if (!_isGrounded) friction *= _airFrictionMultiplier;
         if (_isSliding && _isGrounded) friction *= _slideFrictionMultiplier;
+        if (_postDashFrictionTimer > 0f) friction *= _postDashFrictionMultiplier;
 
         Vector3 frictionDir = -planarV.normalized;
         _rb.AddForce(frictionDir * friction, ForceMode.Acceleration);
     }
 
+
+    // Clamp horizontal velocity to movement speed stat for controlled top speed.
+    private void ApplyPlanarSpeedCap()
+    {
+        float maxSpeed = Mathf.Max(0.1f, _stats.GetMoveSpeed());
+        Vector3 planarV = new Vector3(_rb.linearVelocity.x, 0f, _rb.linearVelocity.z);
+        float planarSpeed = planarV.magnitude;
+        if (planarSpeed <= maxSpeed || planarSpeed <= 0.0001f) return;
+
+        Vector3 cappedPlanar = planarV * (maxSpeed / planarSpeed);
+        _rb.linearVelocity = new Vector3(cappedPlanar.x, _rb.linearVelocity.y, cappedPlanar.z);
+    }
+
+    // Decrease post-dash friction grace timer used to preserve dash momentum.
+    private void TickPostDashFrictionWindow()
+    {
+        if (_postDashFrictionTimer <= 0f) return;
+        _postDashFrictionTimer = Mathf.Max(0f, _postDashFrictionTimer - Time.fixedDeltaTime);
+    }
     // Attempt jump using ground status and remaining air jumps.
     private void TryJump()
     {
@@ -261,7 +291,7 @@ public class PlayerMovement : MonoBehaviour
         }
     }
 
-    // Validate dash requirements, consume charge, and apply dash impulse.
+    // Validate dash requirements and apply a sudden additive dash velocity boost.
     private void TryDash()
     {
         if (_isDashing) return;
@@ -277,9 +307,9 @@ public class PlayerMovement : MonoBehaviour
         _isCrouching = false;
         _dashTimer = _dashDuration;
 
-        float dashSpeed = Mathf.Max(0.1f, _stats.GetStat(StatType.DashSpeed));
-        Vector3 desiredVelocity = dashDirection * dashSpeed;
+        float dashBoost = Mathf.Max(0.1f, _stats.GetStat(StatType.DashSpeed));
         Vector3 currentPlanar = new Vector3(_rb.linearVelocity.x, 0f, _rb.linearVelocity.z);
+        Vector3 desiredVelocity = currentPlanar + (dashDirection * dashBoost);
         Vector3 velocityChange = desiredVelocity - currentPlanar;
         _rb.AddForce(velocityChange * _rb.mass, ForceMode.Impulse);
 
@@ -296,6 +326,7 @@ public class PlayerMovement : MonoBehaviour
         if (_dashTimer > 0f) return;
 
         _isDashing = false;
+        _postDashFrictionTimer = _postDashFrictionDuration;
         OnDashEnded?.Invoke();
 
         if (_crouchHeld) TryStartCrouchOrSlide();
