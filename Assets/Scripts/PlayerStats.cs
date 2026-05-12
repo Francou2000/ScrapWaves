@@ -132,23 +132,14 @@ public class PlayerStats : MonoBehaviour
         AddModifier(new StatModifier(StatType.AttackSpeedMultiplier, delta, StatUpgradeSource.TemporaryEffect, this));
     }
 
-    // Applies legacy upgrade asset by mapping old stat types.
+    // Applies upgrade asset directly using native stat type configuration.
     public void ApplyUpgrade(Upgrade upgrade)
     {
         if (upgrade == null) return;
 
-        StatType mapped = upgrade.TargetStat switch
-        {
-            PlayerStatType.Damage => StatType.DamageFlat,
-            PlayerStatType.FireRate => StatType.AttackSpeedMultiplier,
-            PlayerStatType.MoveSpeed => StatType.MovementSpeed,
-            PlayerStatType.MaxHealth => StatType.MaxHealth,
-            _ => StatType.MaxHealth
-        };
+        AddModifier(new StatModifier(upgrade.TargetStat, upgrade.Value, StatUpgradeSource.LevelUp, upgrade));
 
-        AddModifier(new StatModifier(mapped, upgrade.Value, StatUpgradeSource.LevelUp, upgrade));
-
-        if (mapped == StatType.MaxHealth && TryGetComponent(out PlayerHealth health))
+        if (upgrade.TargetStat == StatType.MaxHealth && TryGetComponent(out PlayerHealth health))
             health.ApplyMaxHealthIncrease(Mathf.RoundToInt(upgrade.Value));
     }
 }

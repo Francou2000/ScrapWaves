@@ -14,13 +14,13 @@ public class Upgrade : ScriptableObject
     private string _description;
 
     [SerializeField]
-    private PlayerStatType _targetStat;
+    private StatType _targetStat;
 
     [SerializeField, Tooltip("Daño / vida máx.: suma entera (se redondea). Fire rate: reduce segundos del intervalo (ej. 0.03). Move speed: suma unidades/s.")]
     private float _value;
 
     public string DisplayName => string.IsNullOrEmpty(_displayName) ? name : _displayName;
     public string Description => _description;
-    public PlayerStatType TargetStat => _targetStat;
+    public StatType TargetStat => _targetStat;
     public float Value => _value;
 }
