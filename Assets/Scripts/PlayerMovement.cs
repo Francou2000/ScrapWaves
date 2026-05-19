@@ -38,10 +38,13 @@ public class PlayerMovement : MonoBehaviour
     [SerializeField, Min(0f)] private float _minSlideSpeed = 2f;
     [SerializeField, Min(0f)] private float _postDashFrictionMultiplier = 0.3f;
     [SerializeField, Min(0f)] private float _postDashFrictionDuration = 0.18f;
+    [SerializeField, Tooltip("Applies a zero-friction physics material to the movement collider so wall contacts do not grip the player.")]
+    private bool _useFrictionlessMovementMaterial = true;
 
     private Rigidbody _rb;
     private PlayerStats _stats;
     private Collider _ownCollider;
+    private PhysicMaterial _runtimeFrictionlessMaterial;
 
     private Vector2 _moveInput;
     private Vector3 _moveDirectionWorld;
@@ -73,12 +76,32 @@ public class PlayerMovement : MonoBehaviour
 
         _rb.interpolation = RigidbodyInterpolation.Interpolate;
         _rb.freezeRotation = true;
+
+        ConfigureMovementColliderMaterial();
+    }
+
+    // Give the player collider no surface friction so pushing into walls does not prevent sideways movement.
+    private void ConfigureMovementColliderMaterial()
+    {
+        if (!_useFrictionlessMovementMaterial || _ownCollider == null || _ownCollider.isTrigger) return;
+
+        _runtimeFrictionlessMaterial = new PhysicMaterial("Player Frictionless Movement")
+        {
+            staticFriction = 0f,
+            dynamicFriction = 0f,
+            bounciness = 0f,
+            frictionCombine = PhysicMaterialCombine.Minimum,
+            bounceCombine = PhysicMaterialCombine.Minimum
+        };
+
+        _ownCollider.material = _runtimeFrictionlessMaterial;
     }
 
     // Clear singleton when this movement instance is destroyed.
     private void OnDestroy()
     {
         if (s_Instance == this) s_Instance = null;
+        if (_runtimeFrictionlessMaterial != null) Destroy(_runtimeFrictionlessMaterial);
     }
 
     // Resolve camera reference and initialize jump and dash counters.
