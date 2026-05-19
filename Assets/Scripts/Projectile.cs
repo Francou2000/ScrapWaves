@@ -17,6 +17,9 @@ public class Projectile : MonoBehaviour
     private float _elapsed;
     private bool _consumed;
     private Rigidbody _rigidbody;
+    private bool _useExplosion;
+    private float _explosionRadius;
+    private float _explosionFalloff;
 
     private void Awake()
     {
@@ -41,6 +44,7 @@ public class Projectile : MonoBehaviour
         _damage = Mathf.Max(1, damageForThisShot);
     }
 
+    // Launches projectile and resets runtime damage mode state.
     public void Launch(Vector3 worldDirection)
     {
         if (worldDirection.sqrMagnitude > 0.0001f)
@@ -51,6 +55,18 @@ public class Projectile : MonoBehaviour
 
         _rigidbody.position = transform.position;
         _rigidbody.rotation = transform.rotation;
+        _useExplosion = false;
+        _explosionRadius = 0f;
+        _explosionFalloff = 0f;
+    }
+
+
+    // Configures radial explosion damage behavior for this shot.
+    public void ConfigureExplosion(float radius, float falloff)
+    {
+        _useExplosion = radius > 0f;
+        _explosionRadius = Mathf.Max(0f, radius);
+        _explosionFalloff = Mathf.Clamp01(falloff);
     }
 
     private void FixedUpdate()
@@ -86,12 +102,34 @@ public class Projectile : MonoBehaviour
         }
 
         IDamageable damageable = other.GetComponentInParent<IDamageable>();
-        if (damageable != null)
+        if (_useExplosion)
+            ApplyExplosionDamage();
+        else if (damageable != null)
             damageable.ApplyDamage(_damage);
 
         DespawnOrDestroy();
     }
 
+
+    // Applies area damage around impact point with distance-based falloff.
+    private void ApplyExplosionDamage()
+    {
+        Collider[] hits = Physics.OverlapSphere(transform.position, _explosionRadius);
+        for (int i = 0; i < hits.Length; i++)
+        {
+            IDamageable damageable = hits[i].GetComponentInParent<IDamageable>();
+            if (damageable == null)
+                continue;
+
+            float distance = Vector3.Distance(transform.position, hits[i].transform.position);
+            float t = _explosionRadius <= 0f ? 1f : Mathf.Clamp01(distance / _explosionRadius);
+            float falloffScale = Mathf.Lerp(1f, 1f - _explosionFalloff, t);
+            int finalDamage = Mathf.Max(1, Mathf.RoundToInt(_damage * falloffScale));
+            damageable.ApplyDamage(finalDamage);
+        }
+    }
+
+    // Returns projectile to pool or destroys when pooling unavailable.
     private void DespawnOrDestroy()
     {
         if (_consumed)

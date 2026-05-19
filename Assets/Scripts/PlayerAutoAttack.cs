@@ -17,15 +17,20 @@ public class PlayerAutoAttack : MonoBehaviour
 
     private float _fireCooldown;
     private PlayerStats _stats;
+    private WeaponManager _weaponManager;
 
     private void Awake()
     {
         _stats = GetComponent<PlayerStats>();
+        _weaponManager = GetComponent<WeaponManager>();
     }
 
     private void Update()
     {
         if (GameManager.Instance != null && !GameManager.Instance.IsPlaying)
+            return;
+
+        if (_weaponManager != null && _weaponManager.GetEquippedWeapons().Count > 0)
             return;
 
         float interval = _stats.GetFireInterval();

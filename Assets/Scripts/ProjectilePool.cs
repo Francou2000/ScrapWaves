@@ -178,6 +178,29 @@ public class ProjectilePool : MonoBehaviour
         return true;
     }
 
+
+    // Spawns projectile configured with explosion radius and damage falloff.
+    public bool TrySpawnExplosiveProjectile(Vector3 position, Quaternion rotation, Vector3 fireDirection, int damage, float explosionRadius, float falloff)
+    {
+        GameObject go = TryGet();
+        if (go == null)
+            return false;
+
+        go.transform.SetPositionAndRotation(position, rotation);
+
+        Projectile projectile = go.GetComponent<Projectile>();
+        if (projectile == null)
+        {
+            Release(go);
+            return false;
+        }
+
+        projectile.ConfigurePooled(_projectileLifetime, damage);
+        projectile.ConfigureExplosion(explosionRadius, falloff);
+        projectile.Launch(fireDirection);
+        return true;
+    }
+
     private GameObject CreateInstance(bool enqueueInactive)
     {
         EnsureRuntimeParentExists();
