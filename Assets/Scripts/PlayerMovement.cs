@@ -391,6 +391,45 @@ public class PlayerMovement : MonoBehaviour
             _currentDashCharges = maxCharges;
             OnDashChargesChanged?.Invoke(_currentDashCharges, maxCharges);
         }
+    }
+
+    // Validate dash requirements and apply a sudden additive dash velocity boost.
+    private void TryDash()
+    {
+        if (_isDashing) return;
+
+        int maxCharges = Mathf.Max(0, _stats.GetStatInt(StatType.DashCharges));
+        if (maxCharges <= 0 || _currentDashCharges <= 0) return;
+
+        Vector3 dashDirection = _moveDirectionWorld;
+        if (dashDirection.sqrMagnitude <= 0.0001f) return;
+
+        _isDashing = true;
+        _isSliding = false;
+        _isCrouching = false;
+        _dashTimer = _dashDuration;
+
+        float dashBoost = Mathf.Max(0.1f, _stats.GetStat(StatType.DashSpeed));
+        Vector3 currentPlanar = new Vector3(_rb.linearVelocity.x, 0f, _rb.linearVelocity.z);
+        Vector3 desiredVelocity = currentPlanar + (dashDirection * dashBoost);
+        Vector3 velocityChange = desiredVelocity - currentPlanar;
+        _rb.AddForce(velocityChange * _rb.mass, ForceMode.Impulse);
+
+        _currentDashCharges = Mathf.Max(0, _currentDashCharges - 1);
+        _dashRegenTimer = 0f;
+        OnDashChargesChanged?.Invoke(_currentDashCharges, maxCharges);
+        OnDashStarted?.Invoke();
+    }
+
+    // Advance dash timer and restore regular movement behavior after dash ends.
+    private void HandleDashTimer()
+    {
+        _dashTimer -= Time.fixedDeltaTime;
+        if (_dashTimer > 0f) return;
+
+        _isDashing = false;
+        _postDashFrictionTimer = _postDashFrictionDuration;
+        OnDashEnded?.Invoke();
 
         if (_currentDashCharges >= maxCharges) return;
 

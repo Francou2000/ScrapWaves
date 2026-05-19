@@ -5,6 +5,7 @@ using UnityEngine;
 public class PlayerStatsLevelUpHandler : MonoBehaviour
 {
     [SerializeField] private PlayerStats _playerStats;
+    [SerializeField] private PlayerXP _playerXp;
     [SerializeField] private int _levelCap = 36;
 
     private readonly Dictionary<StatType, int> _rouletteWeights = new();
@@ -13,7 +14,22 @@ public class PlayerStatsLevelUpHandler : MonoBehaviour
     private void Awake()
     {
         if (_playerStats == null) _playerStats = GetComponent<PlayerStats>();
+        if (_playerXp == null) _playerXp = GetComponent<PlayerXP>();
         InitializeRouletteWeights();
+    }
+
+    // Subscribes to player level-up events to apply stat upgrades automatically.
+    private void OnEnable()
+    {
+        if (_playerXp != null)
+            _playerXp.OnLevelUp += ApplyLevelUpStats;
+    }
+
+    // Unsubscribes from player level-up events to avoid dangling handlers.
+    private void OnDisable()
+    {
+        if (_playerXp != null)
+            _playerXp.OnLevelUp -= ApplyLevelUpStats;
     }
 
     // Seeds roulette weights for stats allowed to level up.
