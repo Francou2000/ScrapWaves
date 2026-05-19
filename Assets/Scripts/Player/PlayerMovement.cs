@@ -34,17 +34,22 @@ public class PlayerMovement : MonoBehaviour
     [SerializeField, Min(0.01f)] private float _dashDuration = 0.25f;
     [SerializeField, Min(0.01f)] private float _groundedDashRegenTime = 2f;
     [SerializeField, Min(0.01f)] private float _airborneDashRegenTime = 4f;
-    [SerializeField, Min(0f)] private float _slideSpeedThreshold = 5f;
+    [SerializeField, Min(1f)] private float _slideStartSpeedMultiplier = 1.5f;
     [SerializeField, Min(0f)] private float _minSlideSpeed = 2f;
     [SerializeField, Min(0f)] private float _postDashFrictionMultiplier = 0.3f;
     [SerializeField, Min(0f)] private float _postDashFrictionDuration = 0.18f;
 
+    [SerializeField, Tooltip("Applies a zero-friction physics material to the movement collider so wall contacts do not grip the player.")]
+    private bool _useFrictionlessMovementMaterial = true;
+
     private Rigidbody _rb;
     private PlayerStats _stats;
     private Collider _ownCollider;
+    private PhysicsMaterial _runtimeFrictionlessMaterial;
 
     private Vector2 _moveInput;
     private Vector3 _moveDirectionWorld;
+    private Vector3 _slideDirectionWorld;
     private bool _jumpPressed;
     private bool _crouchHeld;
     private bool _crouchPressed;
@@ -72,7 +77,24 @@ public class PlayerMovement : MonoBehaviour
         s_Instance = this;
 
         _rb.interpolation = RigidbodyInterpolation.Interpolate;
-        _rb.freezeRotation = true;
+        _rb.freezeRotation = true; ConfigureMovementColliderMaterial();
+    }
+
+    // Give the player collider no surface friction so pushing into walls does not prevent sideways movement.
+    private void ConfigureMovementColliderMaterial()
+    {
+        if (!_useFrictionlessMovementMaterial || _ownCollider == null || _ownCollider.isTrigger) return;
+
+        _runtimeFrictionlessMaterial = new PhysicsMaterial("Player Frictionless Movement")
+        {
+            staticFriction = 0f,
+            dynamicFriction = 0f,
+            bounciness = 0f,
+            frictionCombine = PhysicsMaterialCombine.Minimum,
+            bounceCombine = PhysicsMaterialCombine.Minimum
+        };
+
+        _ownCollider.material = _runtimeFrictionlessMaterial;
     }
 
     // Clear singleton when this movement instance is destroyed.
@@ -162,9 +184,10 @@ public class PlayerMovement : MonoBehaviour
     // Apply acceleration force and rotate player while respecting movement state priorities.
     private void HandleMovement()
     {
-        if (_moveDirectionWorld.sqrMagnitude > 0.0001f)
+        Vector3 facingDirection = _isSliding ? _slideDirectionWorld : _moveDirectionWorld;
+        if (facingDirection.sqrMagnitude > 0.0001f)
         {
-            Quaternion targetRotation = Quaternion.LookRotation(_moveDirectionWorld);
+            Quaternion targetRotation = Quaternion.LookRotation(facingDirection);
             transform.rotation = Quaternion.RotateTowards(transform.rotation, targetRotation, _rotationSpeed * Time.fixedDeltaTime);
         }
 
@@ -198,9 +221,11 @@ public class PlayerMovement : MonoBehaviour
     }
 
 
-    // Clamp horizontal velocity to movement speed stat for controlled top speed.
+    // Clamp normal horizontal velocity without crushing slide or dash momentum.
     private void ApplyPlanarSpeedCap()
     {
+        if (_isSliding || _postDashFrictionTimer > 0f) return;
+
         float maxSpeed = Mathf.Max(0.1f, _stats.GetMoveSpeed());
         Vector3 planarV = new Vector3(_rb.linearVelocity.x, 0f, _rb.linearVelocity.z);
         float planarSpeed = planarV.magnitude;
@@ -244,54 +269,90 @@ public class PlayerMovement : MonoBehaviour
         _rb.linearVelocity = lv;
         _rb.AddForce(Vector3.up * (jumpSpeed * _rb.mass), ForceMode.Impulse);
 
-        if (_isSliding)
-        {
-            _isSliding = false;
-            OnSlideEnded?.Invoke();
-        }
+        if (_isSliding) StopSlide(false);
 
         if (isAirJump) OnAirJump?.Invoke();
         else OnJump?.Invoke();
     }
 
-    // Enter crouch or slide based on grounded state and speed thresholds.
+    // Enter crouch, or slide when grounded speed is high enough.
     private void TryStartCrouchOrSlide()
     {
         if (_isDashing) return;
 
-        bool canStartSlide = CurrentPlanarSpeed() > _slideSpeedThreshold || !_isGrounded;
-        if (canStartSlide)
+        if (_isGrounded && CanStartSlide())
         {
-            _isSliding = true;
-            _isCrouching = false;
-            OnSlideStarted?.Invoke();
+            StartSlide();
             return;
         }
 
-        if (!_isCrouching)
-        {
-            _isCrouching = true;
-            OnCrouchStarted?.Invoke();
-        }
+        StartCrouch();
     }
 
     // Exit crouch and slide states when crouch input is released.
     private void StopCrouchOrSlide()
     {
-        if (_isSliding)
-        {
-            _isSliding = false;
-            OnSlideEnded?.Invoke();
-        }
-
-        if (_isCrouching)
-        {
-            _isCrouching = false;
-            OnCrouchEnded?.Invoke();
-        }
+        StopSlide(false);
+        StopCrouch();
     }
 
-    // Validate dash requirements, consume charge, and apply dash impulse.
+    // Begin crouch without duplicating start events.
+    private void StartCrouch()
+    {
+        if (_isCrouching) return;
+
+        _isCrouching = true;
+        OnCrouchStarted?.Invoke();
+    }
+
+    // End crouch without duplicating end events.
+    private void StopCrouch()
+    {
+        if (!_isCrouching) return;
+
+        _isCrouching = false;
+        OnCrouchEnded?.Invoke();
+    }
+
+    // Start slide and lock facing to current momentum or input direction.
+    private void StartSlide()
+    {
+        if (_isSliding) return;
+
+        Vector3 planarVelocity = new Vector3(_rb.linearVelocity.x, 0f, _rb.linearVelocity.z);
+        if (planarVelocity.sqrMagnitude > 0.0001f) _slideDirectionWorld = planarVelocity.normalized;
+        else if (_moveDirectionWorld.sqrMagnitude > 0.0001f) _slideDirectionWorld = _moveDirectionWorld;
+        else _slideDirectionWorld = transform.forward;
+
+        StopCrouch();
+        _isSliding = true;
+        OnSlideStarted?.Invoke();
+    }
+
+    // Stop slide and optionally fall back to held crouch.
+    private void StopSlide(bool crouchIfHeld)
+    {
+        if (!_isSliding) return;
+
+        _isSliding = false;
+        OnSlideEnded?.Invoke();
+
+        if (crouchIfHeld && _crouchHeld) StartCrouch();
+    }
+
+    // Check whether grounded speed passes movement-scaled slide threshold.
+    private bool CanStartSlide()
+    {
+        return _isGrounded && CurrentPlanarSpeed() >= GetSlideStartSpeed();
+    }
+
+    // Calculate slide entry speed from current movement speed stat.
+    private float GetSlideStartSpeed()
+    {
+        return Mathf.Max(0.1f, _stats.GetMoveSpeed()) * _slideStartSpeedMultiplier;
+    }
+
+    // Validate dash requirements and apply a sudden additive dash velocity boost.
     private void TryDash()
     {
         if (_isDashing) return;
@@ -302,14 +363,14 @@ public class PlayerMovement : MonoBehaviour
         Vector3 dashDirection = _moveDirectionWorld;
         if (dashDirection.sqrMagnitude <= 0.0001f) return;
 
+        StopSlide(false);
+        StopCrouch();
         _isDashing = true;
-        _isSliding = false;
-        _isCrouching = false;
         _dashTimer = _dashDuration;
 
-        float dashSpeed = Mathf.Max(0.1f, _stats.GetStat(StatType.DashSpeed));
-        Vector3 desiredVelocity = dashDirection * dashSpeed;
+        float dashBoost = Mathf.Max(0.1f, _stats.GetStat(StatType.DashSpeed));
         Vector3 currentPlanar = new Vector3(_rb.linearVelocity.x, 0f, _rb.linearVelocity.z);
+        Vector3 desiredVelocity = currentPlanar + (dashDirection * dashBoost);
         Vector3 velocityChange = desiredVelocity - currentPlanar;
         _rb.AddForce(velocityChange * _rb.mass, ForceMode.Impulse);
 
@@ -373,18 +434,27 @@ public class PlayerMovement : MonoBehaviour
         {
             _remainingAirJumps = Mathf.Max(0, _stats.GetStatInt(StatType.AirJumps));
             OnLanded?.Invoke();
-        }
 
-        if (_isSliding && (!_crouchHeld || CurrentPlanarSpeed() < _minSlideSpeed))
-        {
-            _isSliding = false;
-            OnSlideEnded?.Invoke();
-            if (_crouchHeld)
+            if (_crouchHeld && !_isDashing)
             {
-                _isCrouching = true;
-                OnCrouchStarted?.Invoke();
+                StartSlide();
+                return;
             }
         }
+
+        if (_isSliding && !_crouchHeld)
+        {
+            StopSlide(false);
+            return;
+        }
+
+        if (_isSliding && _isGrounded && CurrentPlanarSpeed() < _minSlideSpeed)
+        {
+            StopSlide(true);
+            return;
+        }
+
+        if (!_isSliding && _crouchHeld && CanStartSlide()) StartSlide();
     }
 
     // Check for floor contact using collider-aware downward raycast.

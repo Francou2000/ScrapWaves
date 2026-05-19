@@ -5,7 +5,7 @@ using UnityEngine;
 public enum StatType
 {
     MovementSpeed, JumpHeight, AirJumps, DashCharges, DashSpeed,
-    DamageMultiplier, DamageFlat, EliteDamageMultiplier, AttackSpeedMultiplier, ProjectileAreaSize, CriticalChance, CriticalDamage, Knockback,
+    DamageMultiplier, DamageFlat, EliteDamageMultiplier, AttackSpeedMultiplier, ProjectileAreaSize, CriticalChance, CriticalDamage, Knockback, AmmoMultiplier,
     MaxHealth, HealthRegeneration, Lifesteal, DamageResistance,
     PickupRange, ExtraEliteChance, Scavenging, DoubleDrop,
     BaseFireInterval
