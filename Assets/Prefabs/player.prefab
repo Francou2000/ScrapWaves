@@ -12,7 +12,7 @@ GameObject:
   - component: {fileID: 552200003}
   - component: {fileID: 1777334219184809752}
   - component: {fileID: 552200004}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: ContactHurtbox
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -107,7 +107,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 123637993059655878}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: FIrePoint
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -141,7 +141,7 @@ GameObject:
   - component: {fileID: 8077849100808620693}
   - component: {fileID: 7701726067427855686}
   - component: {fileID: 2601075760972098091}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: Capsule
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -265,7 +265,10 @@ GameObject:
   - component: {fileID: 2245531612050121699}
   - component: {fileID: 2722271539961839194}
   - component: {fileID: 6550663601649283624}
-  m_Layer: 0
+  - component: {fileID: 5549646721490838355}
+  - component: {fileID: 8802695284123346318}
+  - component: {fileID: 766184711586426333}
+  m_Layer: 6
   m_Name: player
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -386,7 +389,7 @@ CharacterController:
     m_Bits: 0
   m_LayerOverridePriority: 0
   m_ProvidesContacts: 0
-  m_Enabled: 1
+  m_Enabled: 0
   serializedVersion: 3
   m_Height: 2
   m_Radius: 0.5
@@ -409,7 +412,23 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::PlayerMovement
   _cameraTransform: {fileID: 0}
   _rotationSpeed: 540
-  _gravity: -25
+  _baseMoveAcceleration: 75
+  _baseFriction: 10
+  _groundCheckExtraDistance: 0.08
+  _groundMask:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  _airFrictionMultiplier: 0.4
+  _crouchAccelerationMultiplier: 0.2
+  _slideFrictionMultiplier: 0.4
+  _dashDuration: 0.25
+  _groundedDashRegenTime: 2
+  _airborneDashRegenTime: 4
+  _slideStartSpeedMultiplier: 1.5
+  _minSlideSpeed: 2
+  _postDashFrictionMultiplier: 0.3
+  _postDashFrictionDuration: 0.18
+  _useFrictionlessMovementMaterial: 1
 --- !u!114 &6535847504202732059
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -417,14 +436,15 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 7499600762926182951}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 6d0c1b2a3948576a7584938271605ff4, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerAutoAttack
   _firePoint: {fileID: 123637993059655878}
-  _projectilePool: {fileID: 9100000000000000003, guid: 11aa22bb33cc44dd55ee66ff77889900, type: 3}
-  _detectionRange: 12
+  _projectilePool: {fileID: 0}
+  _detectionRange: 8
+  _maxAimVerticalDelta: 2.5
 --- !u!114 &8811223344556677880
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -481,7 +501,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerXP
   _startingLevel: 1
-  _baseXpToNextLevel: 80
+  _baseXpToNextLevel: 20
   _scalingMultiplierByLevel:
     serializedVersion: 2
     m_Curve:
@@ -539,14 +559,29 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 88903e5e238394d449fcc5309f2592ee, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerStats
-  _baseDamage: 2
-  _baseFireInterval: 0.35
-  _baseMoveSpeed: 7
-  _baseMaxHealth: 100
-  _bonusDamage: 0
-  _fireIntervalReduction: 0
-  _bonusMoveSpeed: 0
-  _bonusMaxHealth: 0
+  _statDefinitions:
+  - {fileID: 11400000, guid: f7497ac6701998d43b9176db6dc66dee, type: 2}
+  - {fileID: 11400000, guid: 36602ff5cb551d344809adbe307a4c30, type: 2}
+  - {fileID: 11400000, guid: 0c02aa7cc53d6cb4eb706c7c2bd1bc95, type: 2}
+  - {fileID: 11400000, guid: 0d297211265c5c049a9aca42cedc908f, type: 2}
+  - {fileID: 11400000, guid: 3ea65e0a60bea154bbff1e054023d4d1, type: 2}
+  - {fileID: 11400000, guid: f3bdb5af25f0c5b4499d30061e028fe2, type: 2}
+  - {fileID: 11400000, guid: 1d6d6495bcb9aff40ad31d0c9109b0cd, type: 2}
+  - {fileID: 11400000, guid: 9e9152ba958237a4d8839629c6f186e3, type: 2}
+  - {fileID: 11400000, guid: 7096d39cc59b1b848abbbbc8765752b6, type: 2}
+  - {fileID: 11400000, guid: 1bdb731ad027be74eb3a3551e85e4a7a, type: 2}
+  - {fileID: 11400000, guid: 33dd732e2b1104e468f674989d57514a, type: 2}
+  - {fileID: 11400000, guid: 440891f3d0e708a44acc66588251e697, type: 2}
+  - {fileID: 11400000, guid: c0bf1aa5fd6dd8141af72a904d229e12, type: 2}
+  - {fileID: 11400000, guid: d5a12188b5c5abe409f85a1ccafb3d7a, type: 2}
+  - {fileID: 11400000, guid: e47a8da7f4dfba5478d27fbee519c7e0, type: 2}
+  - {fileID: 11400000, guid: d3cf3ea5eb402af48828369e1668902a, type: 2}
+  - {fileID: 11400000, guid: f100fbebc3ca92648a5813e91da5f31d, type: 2}
+  - {fileID: 11400000, guid: 47934be4c6b415b4b9c953295e99a672, type: 2}
+  - {fileID: 11400000, guid: 603f83912fa267a4bb42c95a523bbfa3, type: 2}
+  - {fileID: 11400000, guid: 58321283aef974443818fb14a2f06a8a, type: 2}
+  - {fileID: 11400000, guid: c17a22a8a64e4804aab1c764a41cc27c, type: 2}
+  - {fileID: 11400000, guid: 1b46d750f574e004286981598dfffe29, type: 2}
 --- !u!114 &2722271539961839194
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -589,3 +624,65 @@ MonoBehaviour:
   _fireRateMultiplier: 1.5
   _heatAfterOverheat: 0
   _logState: 0
+  _swarmEnemyPool: {fileID: 0}
+--- !u!54 &5549646721490838355
+Rigidbody:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7499600762926182951}
+  serializedVersion: 5
+  m_Mass: 1
+  m_LinearDamping: 0
+  m_AngularDamping: 0.05
+  m_CenterOfMass: {x: 0, y: 0, z: 0}
+  m_InertiaTensor: {x: 1, y: 1, z: 1}
+  m_InertiaRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ImplicitCom: 1
+  m_ImplicitTensor: 1
+  m_UseGravity: 1
+  m_IsKinematic: 0
+  m_Interpolate: 0
+  m_Constraints: 0
+  m_CollisionDetection: 0
+--- !u!114 &8802695284123346318
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7499600762926182951}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 82cbce0dab044364c933c4f7f6c13b38, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::WeaponManager
+  _startingWeapons:
+  - {fileID: 11400000, guid: 7991edf7f844c1b4abbdf23bd13bf5c8, type: 2}
+  - {fileID: 11400000, guid: 06695e9a9e2d050489bea57d214585ff, type: 2}
+  _projectileSpawn: {fileID: 123637993059655878}
+  _projectilePool: {fileID: 0}
+  _manualCycleCooldown: 1.25
+  _singleWeaponCycleCooldown: 2.5
+--- !u!114 &766184711586426333
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7499600762926182951}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6e1ce3c3f94871e4192dd6d04fe78fba, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::WeaponDebugMonitor
+  _weaponManager: {fileID: 8802695284123346318}
+  _showOverlay: 1
+  _logStateChanges: 1
