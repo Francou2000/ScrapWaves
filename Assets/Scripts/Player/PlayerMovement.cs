@@ -25,18 +25,18 @@ public class PlayerMovement : MonoBehaviour
     [SerializeField] private Transform _cameraTransform;
     [SerializeField] private float _rotationSpeed = 540f;
     [SerializeField, Min(0.1f)] private float _baseMoveAcceleration = 38f;
-    [SerializeField, Min(0.1f)] private float _baseFriction = 18f;
+    [SerializeField, Min(0.1f)] private float _baseFriction = 9f;
     [SerializeField, Min(0f)] private float _groundCheckExtraDistance = 0.08f;
     [SerializeField] private LayerMask _groundMask = ~0;
-    [SerializeField, Min(0f)] private float _airFrictionMultiplier = 0.4f;
+    [SerializeField, Min(0f)] private float _airFrictionMultiplier = 0.2f;
     [SerializeField, Min(0f)] private float _crouchAccelerationMultiplier = 0.2f;
-    [SerializeField, Min(0f)] private float _slideFrictionMultiplier = 0.4f;
+    [SerializeField, Min(0f)] private float _slideFrictionMultiplier = 0.1f;
     [SerializeField, Min(0.01f)] private float _dashDuration = 0.25f;
     [SerializeField, Min(0.01f)] private float _groundedDashRegenTime = 2f;
     [SerializeField, Min(0.01f)] private float _airborneDashRegenTime = 4f;
     [SerializeField, Min(1f)] private float _slideStartSpeedMultiplier = 1.5f;
     [SerializeField, Min(0f)] private float _minSlideSpeed = 2f;
-    [SerializeField, Min(0f)] private float _postDashFrictionMultiplier = 0.3f;
+    [SerializeField, Min(0f)] private float _postDashFrictionMultiplier = 0.15f;
     [SerializeField, Min(0f)] private float _postDashFrictionDuration = 0.18f;
 
     [SerializeField, Tooltip("Applies a zero-friction physics material to the movement collider so wall contacts do not grip the player.")]
@@ -278,7 +278,13 @@ public class PlayerMovement : MonoBehaviour
     // Enter crouch, or slide when grounded speed is high enough.
     private void TryStartCrouchOrSlide()
     {
-        if (_isDashing) return;
+        if (_isDashing)
+        {
+            Debug.Log("Tried slide/crouch but currently dashing.", this);
+            return;
+        }
+
+        Debug.Log($"TRY SLIDE | Grounded: {_isGrounded} | Speed: {CurrentPlanarSpeed():0.00} | Required: {GetSlideStartSpeed():0.00}", this);
 
         if (_isGrounded && CanStartSlide())
         {
@@ -326,6 +332,9 @@ public class PlayerMovement : MonoBehaviour
 
         StopCrouch();
         _isSliding = true;
+
+        Debug.Log($"ENTERED SLIDE | Speed: {CurrentPlanarSpeed():0.00} | Grounded: {_isGrounded} | Threshold: {GetSlideStartSpeed():0.00}", this);
+
         OnSlideStarted?.Invoke();
     }
 
@@ -333,6 +342,8 @@ public class PlayerMovement : MonoBehaviour
     private void StopSlide(bool crouchIfHeld)
     {
         if (!_isSliding) return;
+
+        Debug.Log($"EXITED SLIDE | Speed: {CurrentPlanarSpeed():0.00} | Grounded: {_isGrounded} | CrouchHeld: {_crouchHeld} | CrouchIfHeld: {crouchIfHeld}", this);
 
         _isSliding = false;
         OnSlideEnded?.Invoke();
