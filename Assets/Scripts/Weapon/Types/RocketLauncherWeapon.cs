@@ -1,6 +1,4 @@
-using System;
 using UnityEngine;
-using static UnityEngine.UI.GridLayoutGroup;
 
 public sealed class RocketLauncherWeapon : BasicProjectileWeapon
 {
@@ -38,7 +36,9 @@ public sealed class RocketLauncherWeapon : BasicProjectileWeapon
             return;
 
         FireTimer = GetManualFireInterval();
-        Runtime.CurrentAmmo -= 1f;
+        if (!TrySpendManualAmmo(1f, requireFullAmount: false))
+            return;
+
         FireBurstAt(Spawn.position + aimDirection.normalized * Runtime.Data.BaseRange, 1, 1.15f, 0f, 2.4f, 0.35f);
     }
 
@@ -48,7 +48,9 @@ public sealed class RocketLauncherWeapon : BasicProjectileWeapon
         if (Runtime.State != WeaponState.Manual)
             return;
 
-        Runtime.CurrentAmmo -= Runtime.Data.ActiveAbilityAmmoCost;
+        if (!TrySpendManualAmmo(Runtime.Data.ActiveAbilityAmmoCost, requireFullAmount: true))
+            return;
+
         int heatBonus = Heat != null ? Mathf.FloorToInt(Heat.NormalizedHeat * 10f) : 0;
         int rocketCount = Mathf.Clamp(10 + heatBonus, 1, 20);
         FireBurstAt(Spawn.position + aimDirection.normalized * Runtime.Data.BaseRange, rocketCount, 2f, 0.08f, 2.9f, 0.5f);

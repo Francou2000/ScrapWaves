@@ -5450,6 +5450,14 @@ PrefabInstance:
       propertyPath: _projectilePool
       value: 
       objectReference: {fileID: 800208824}
+    - target: {fileID: 6550663601649283624, guid: 8996325517cf50a4cb685418ded6441a, type: 3}
+      propertyPath: _heatManager
+      value: 
+      objectReference: {fileID: 2026883592}
+    - target: {fileID: 6550663601649283624, guid: 8996325517cf50a4cb685418ded6441a, type: 3}
+      propertyPath: _swarmEnemyPool
+      value: 
+      objectReference: {fileID: 2137547701}
     - target: {fileID: 7499600762926182951, guid: 8996325517cf50a4cb685418ded6441a, type: 3}
       propertyPath: m_Name
       value: player

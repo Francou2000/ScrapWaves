@@ -54,7 +54,8 @@ public class Projectile : MonoBehaviour
         _consumed = false;
 
         _rigidbody.position = transform.position;
-        _rigidbody.rotation = transform.rotation; _useExplosion = false;
+        _rigidbody.rotation = transform.rotation;
+        _useExplosion = false;
         _explosionRadius = 0f;
         _explosionFalloff = 0f;
     }
@@ -102,10 +103,15 @@ public class Projectile : MonoBehaviour
 
         IDamageable damageable = other.GetComponentInParent<IDamageable>();
         if (_useExplosion)
+        {
             ApplyExplosionDamage();
-        else if (damageable != null)
-
             DespawnOrDestroy();
+        }
+        else if (damageable != null)
+        {
+            damageable.ApplyDamage(_damage);
+            DespawnOrDestroy();
+        }
     }
 
     // Applies area damage around impact point with distance-based falloff.

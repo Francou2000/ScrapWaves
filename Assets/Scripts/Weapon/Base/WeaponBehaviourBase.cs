@@ -67,7 +67,9 @@ public class BasicProjectileWeapon : IWeaponBehaviour
             return;
 
         FireTimer = GetFireInterval();
-        Runtime.CurrentAmmo -= 1f;
+        if (!TrySpendManualAmmo(1f, requireFullAmount: false))
+            return;
+
         FireAt(Spawn.position + aimDirection.normalized * Runtime.Data.BaseRange, 1f, false);
     }
 
@@ -77,7 +79,9 @@ public class BasicProjectileWeapon : IWeaponBehaviour
         if (Runtime.State != WeaponState.Manual)
             return;
 
-        Runtime.CurrentAmmo -= Runtime.Data.ActiveAbilityAmmoCost;
+        if (!TrySpendManualAmmo(Runtime.Data.ActiveAbilityAmmoCost, requireFullAmount: true))
+            return;
+
         FireAt(Spawn.position + aimDirection.normalized * Runtime.Data.BaseRange, 1.75f, false);
     }
 
@@ -89,8 +93,31 @@ public class BasicProjectileWeapon : IWeaponBehaviour
     {
         float attackSpeed = Mathf.Max(0.01f, Stats.GetStat(StatType.AttackSpeedMultiplier));
         float weaponRate = Mathf.Max(0.01f, Runtime.Data.BaseAttackRate * WeaponMath.GetAttackRateMultiplier(Runtime));
-        float heatBonus = Heat != null ? 1f + Heat.NormalizedHeat * 0.25f : 1f;
+        float heatBonus = GetHeatFireRateMultiplier();
         return 1f / Mathf.Max(0.05f, weaponRate * attackSpeed * heatBonus);
+    }
+
+    // Lets individual weapons decide whether heat affects fire rate.
+    protected virtual float GetHeatFireRateMultiplier()
+    {
+        return Heat != null ? 1f + Heat.NormalizedHeat * 0.25f : 1f;
+    }
+
+    // Lets individual weapons override critical damage behavior.
+    protected virtual float GetCritMultiplierOverride() => 1f;
+
+    // Spends manual ammo, optionally requiring the full amount before firing.
+    protected bool TrySpendManualAmmo(float amount, bool requireFullAmount)
+    {
+        if (Runtime == null || Runtime.State != WeaponState.Manual || Runtime.CurrentAmmo <= 0f)
+            return false;
+
+        float cost = Mathf.Max(0f, amount);
+        if (requireFullAmount && Runtime.CurrentAmmo < cost)
+            return false;
+
+        Runtime.CurrentAmmo = Mathf.Max(0f, Runtime.CurrentAmmo - cost);
+        return true;
     }
 
     // Spawns explosive projectile with configurable radius and falloff behavior.
@@ -104,22 +131,40 @@ public class BasicProjectileWeapon : IWeaponBehaviour
             return;
 
         Quaternion rotation = Quaternion.FromToRotation(Vector3.forward, direction);
-        float damage = WeaponDamageResolver.CalculateDamage(Stats, Runtime, eliteOrBoss, CanCrit()) * damageScale;
+        float damage = WeaponDamageResolver.CalculateDamage(Stats, Runtime, eliteOrBoss, CanCrit(), GetCritMultiplierOverride()) * damageScale;
         Pool.TrySpawnExplosiveProjectile(Spawn.position, rotation, direction, Mathf.RoundToInt(damage), explosionRadius, falloff);
     }
 
     // Spawns one projectile toward position and resolves final scaled damage.
     protected void FireAt(Vector3 targetPosition, float damageScale, bool eliteOrBoss)
     {
-        if (Pool == null || Spawn == null)
+        if (Spawn == null)
             return;
 
-        Vector3 direction = (targetPosition - Spawn.position).normalized;
+        FireInDirection(targetPosition - Spawn.position, damageScale, eliteOrBoss);
+    }
+
+    // Spawns one projectile in a known direction and resolves final scaled damage.
+    protected void FireInDirection(Vector3 direction, float damageScale, bool eliteOrBoss)
+    {
+        if (Spawn == null)
+            return;
+
+        FireFromPositionInDirection(Spawn.position, direction, damageScale, eliteOrBoss);
+    }
+
+    // Spawns one projectile from a specific position in a known direction.
+    protected void FireFromPositionInDirection(Vector3 position, Vector3 direction, float damageScale, bool eliteOrBoss)
+    {
+        if (Pool == null)
+            return;
+
         if (direction.sqrMagnitude <= 0.0001f)
             return;
 
+        direction.Normalize();
         Quaternion rotation = Quaternion.FromToRotation(Vector3.forward, direction);
-        float damage = WeaponDamageResolver.CalculateDamage(Stats, Runtime, eliteOrBoss, CanCrit()) * damageScale;
-        Pool.TrySpawnProjectile(Spawn.position, rotation, direction, Mathf.RoundToInt(damage));
+        float damage = WeaponDamageResolver.CalculateDamage(Stats, Runtime, eliteOrBoss, CanCrit(), GetCritMultiplierOverride()) * damageScale;
+        Pool.TrySpawnProjectile(position, rotation, direction, Mathf.RoundToInt(damage));
     }
 }
