@@ -10,6 +10,12 @@ public class WeaponManager : MonoBehaviour
     [SerializeField] private List<WeaponData> _startingWeapons = new();
     [SerializeField] private Transform _projectileSpawn;
     [SerializeField] private ProjectilePool _projectilePool;
+    [SerializeField, Tooltip("Center-screen aim resolver. Empty uses a ReticleAimProvider on the same player if one exists.")]
+    private ReticleAimProvider _reticleAimProvider;
+
+    [SerializeField, Min(0f), Tooltip("How long the body briefly faces reticle aim when manual fire starts.")]
+    private float _aimFacingHoldTime = 0.08f;
+
     [SerializeField] private float _manualCycleCooldown = 1.25f;
     [SerializeField] private float _singleWeaponCycleCooldown = 2.5f;
 
@@ -18,6 +24,7 @@ public class WeaponManager : MonoBehaviour
     private float _manualCooldownTimer;
 
     private PlayerStats _stats;
+    private PlayerMovement _movement;
     private HeatManager _heat;
     private IWeaponTargeting _targeting;
 
@@ -25,6 +32,10 @@ public class WeaponManager : MonoBehaviour
     private void Awake()
     {
         _stats = GetComponent<PlayerStats>();
+        _movement = GetComponent<PlayerMovement>();
+        if (_reticleAimProvider == null)
+            _reticleAimProvider = GetComponent<ReticleAimProvider>();
+
         _heat = HeatManager.GetInstance();
         _targeting = new ClosestEnemyTargeting();
         AddStartingWeapons();
@@ -130,11 +141,15 @@ public class WeaponManager : MonoBehaviour
         if (_equipped.Count == 0)
             return;
 
-        Vector3 aimDirection = transform.forward;
+        Vector3 aimDirection = GetManualAimDirection();
         bool fireHeld = IsFireHeld();
+        bool firePressed = IsFirePressed();
         bool abilityPressed = IsAbilityPressed();
 
         IWeaponBehaviour manual = _equipped[_currentManualIndex];
+        if (manual.Runtime.State == WeaponState.Manual && (firePressed || abilityPressed))
+            _movement?.RequestAimFacing(aimDirection, _aimFacingHoldTime);
+
         manual.TickManual(deltaTime, aimDirection, fireHeld);
 
         if (abilityPressed)
@@ -142,6 +157,19 @@ public class WeaponManager : MonoBehaviour
 
         if (manual.Runtime.State == WeaponState.Manual && manual.Runtime.CurrentAmmo <= 0f)
             EndManualMode();
+    }
+
+    private Vector3 GetManualAimDirection()
+    {
+        Transform spawn = _projectileSpawn != null ? _projectileSpawn : transform;
+        if (_reticleAimProvider != null && _reticleAimProvider.TryGetAimDirection(spawn.position, out Vector3 aimDirection))
+            return aimDirection.normalized;
+
+        Camera mainCamera = Camera.main;
+        if (mainCamera != null)
+            return mainCamera.transform.forward;
+
+        return transform.forward;
     }
 
 
@@ -152,6 +180,15 @@ public class WeaponManager : MonoBehaviour
         return Mouse.current != null && Mouse.current.leftButton.isPressed;
 #else
         return Input.GetMouseButton(0);
+#endif
+    }
+
+    private bool IsFirePressed()
+    {
+#if ENABLE_INPUT_SYSTEM
+        return Mouse.current != null && Mouse.current.leftButton.wasPressedThisFrame;
+#else
+        return Input.GetMouseButtonDown(0);
 #endif
     }
 

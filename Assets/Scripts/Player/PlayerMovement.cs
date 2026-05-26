@@ -24,6 +24,9 @@ public class PlayerMovement : MonoBehaviour
 
     [SerializeField] private Transform _cameraTransform;
     [SerializeField] private float _rotationSpeed = 540f;
+    [SerializeField, Min(0f), Tooltip("Degrees per second while the body is aligning to reticle aim. Zero uses movement rotation speed.")]
+    private float _aimFacingRotationSpeed = 720f;
+
     [SerializeField, Min(0.1f)] private float _baseMoveAcceleration = 38f;
     [SerializeField, Min(0.1f)] private float _baseFriction = 9f;
     [SerializeField, Min(0f)] private float _groundCheckExtraDistance = 0.08f;
@@ -65,8 +68,10 @@ public class PlayerMovement : MonoBehaviour
     private float _dashTimer;
     private float _dashRegenTimer;
     private float _postDashFrictionTimer;
+    private float _aimFacingTimer;
     private int _remainingAirJumps;
     private int _currentDashCharges;
+    private Vector3 _aimFacingDirection;
 
     // Cache movement components and initialize singleton and physics defaults.
     private void Awake()
@@ -151,7 +156,18 @@ public class PlayerMovement : MonoBehaviour
         }
 
         TickPostDashFrictionWindow();
+        TickAimFacingTimer();
         HandleDashRegeneration();
+    }
+
+    public void RequestAimFacing(Vector3 worldDirection, float duration)
+    {
+        worldDirection.y = 0f;
+        if (worldDirection.sqrMagnitude <= 0.0001f)
+            return;
+
+        _aimFacingDirection = worldDirection.normalized;
+        _aimFacingTimer = Mathf.Max(_aimFacingTimer, duration);
     }
 
     // Poll keyboard and build normalized camera-relative movement direction.
@@ -184,11 +200,14 @@ public class PlayerMovement : MonoBehaviour
     // Apply acceleration force and rotate player while respecting movement state priorities.
     private void HandleMovement()
     {
-        Vector3 facingDirection = _isSliding ? _slideDirectionWorld : _moveDirectionWorld;
+        Vector3 aimFacingDirection = Vector3.zero;
+        bool useAimFacing = !_isSliding && TryGetAimFacingDirection(out aimFacingDirection);
+        Vector3 facingDirection = _isSliding ? _slideDirectionWorld : useAimFacing ? aimFacingDirection : _moveDirectionWorld;
         if (facingDirection.sqrMagnitude > 0.0001f)
         {
             Quaternion targetRotation = Quaternion.LookRotation(facingDirection);
-            transform.rotation = Quaternion.RotateTowards(transform.rotation, targetRotation, _rotationSpeed * Time.fixedDeltaTime);
+            float rotationSpeed = useAimFacing && _aimFacingRotationSpeed > 0f ? _aimFacingRotationSpeed : _rotationSpeed;
+            transform.rotation = Quaternion.RotateTowards(transform.rotation, targetRotation, rotationSpeed * Time.fixedDeltaTime);
         }
 
         if (_isSliding) return;
@@ -240,6 +259,22 @@ public class PlayerMovement : MonoBehaviour
     {
         if (_postDashFrictionTimer <= 0f) return;
         _postDashFrictionTimer = Mathf.Max(0f, _postDashFrictionTimer - Time.fixedDeltaTime);
+    }
+
+    private void TickAimFacingTimer()
+    {
+        if (_aimFacingTimer <= 0f) return;
+        _aimFacingTimer = Mathf.Max(0f, _aimFacingTimer - Time.fixedDeltaTime);
+    }
+
+    private bool TryGetAimFacingDirection(out Vector3 direction)
+    {
+        direction = Vector3.zero;
+        if (_aimFacingTimer <= 0f || _aimFacingDirection.sqrMagnitude <= 0.0001f)
+            return false;
+
+        direction = _aimFacingDirection;
+        return true;
     }
     // Attempt jump using ground status and remaining air jumps.
     private void TryJump()

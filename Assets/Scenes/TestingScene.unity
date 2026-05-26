@@ -1422,8 +1422,15 @@ MonoBehaviour:
   _horizontalSensitivity: 0.12
   _verticalSensitivity: 0.12
   _invertVertical: 0
-  _minPitch: -30
-  _maxPitch: 20
+  _minPitch: -70
+  _maxPitch: 70
+  _avoidCameraClipping: 1
+  _cameraCollisionMask:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  _cameraCollisionRadius: 0.25
+  _cameraCollisionPadding: 0.12
+  _minimumDistanceFromLookPoint: 0.65
   _lockCursorOnPlay: 1
 --- !u!114 &635123412
 MonoBehaviour:

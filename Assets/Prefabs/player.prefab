@@ -268,6 +268,8 @@ GameObject:
   - component: {fileID: 5549646721490838355}
   - component: {fileID: 8802695284123346318}
   - component: {fileID: 766184711586426333}
+  - component: {fileID: 3355374661182279101}
+  - component: {fileID: 3355374661182279102}
   m_Layer: 6
   m_Name: player
   m_TagString: Untagged
@@ -412,6 +414,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::PlayerMovement
   _cameraTransform: {fileID: 0}
   _rotationSpeed: 540
+  _aimFacingRotationSpeed: 720
   _baseMoveAcceleration: 75
   _baseFriction: 10
   _groundCheckExtraDistance: 0.08
@@ -669,6 +672,8 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 06695e9a9e2d050489bea57d214585ff, type: 2}
   _projectileSpawn: {fileID: 123637993059655878}
   _projectilePool: {fileID: 0}
+  _reticleAimProvider: {fileID: 3355374661182279101}
+  _aimFacingHoldTime: 0.08
   _manualCycleCooldown: 1.25
   _singleWeaponCycleCooldown: 2.5
 --- !u!114 &766184711586426333
@@ -686,3 +691,42 @@ MonoBehaviour:
   _weaponManager: {fileID: 8802695284123346318}
   _showOverlay: 1
   _logStateChanges: 1
+--- !u!114 &3355374661182279101
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7499600762926182951}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7fcd5d4d0d8b4a269c433d155d81475d, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Assembly-CSharp::ReticleAimProvider
+  _aimCamera: {fileID: 0}
+  _ignoredRoot: {fileID: 0}
+  _maxAimDistance: 150
+  _aimMask:
+    serializedVersion: 2
+    m_Bits: 4294967295
+--- !u!114 &3355374661182279102
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7499600762926182951}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b6d5b458e2c84b248ba6ccaf3ad941c7, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Assembly-CSharp::ReticleHud
+  _visibleOnStart: 1
+  _reticleSize: 34
+  _lineLength: 9
+  _lineThickness: 2
+  _centerGap: 5
+  _lineColor: {r: 1, g: 1, b: 1, a: 0.92}
+  _shadowColor: {r: 0, g: 0, b: 0, a: 0.55}
+  _shadowOffset: {x: 1, y: -1}
+  _sortingOrder: 650
