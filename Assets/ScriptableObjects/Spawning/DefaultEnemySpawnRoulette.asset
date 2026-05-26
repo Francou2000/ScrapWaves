@@ -1,0 +1,47 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7c4e8f2a9b1d4e6c8a0f3b5d7e9c1a2b, type: 3}
+  m_Name: DefaultEnemySpawnRoulette
+  m_EditorClassIdentifier: Assembly-CSharp::EnemySpawnRouletteConfig
+  _entries:
+  - Kind: 0
+    Prefab: {fileID: 100000, guid: e5ce45a08e4483447a365a6f4c98ff38, type: 3}
+    BaseWeight: 50
+    BatchSize: 10
+    IsVariant: 0
+  - Kind: 1
+    Prefab: {fileID: 100000, guid: aefb60095c090fc4ba790479da511bed, type: 3}
+    BaseWeight: 30
+    BatchSize: 3
+    IsVariant: 0
+  - Kind: 2
+    Prefab: {fileID: 100000, guid: 1780b9abf01edad45945412918dd7eda, type: 3}
+    BaseWeight: 20
+    BatchSize: 5
+    IsVariant: 0
+  - Kind: 3
+    Prefab: {fileID: 100000, guid: f341ba25801c8484fb5b33765526189f, type: 3}
+    BaseWeight: 5
+    BatchSize: 10
+    IsVariant: 1
+  - Kind: 4
+    Prefab: {fileID: 100000, guid: 35733be1c68a9a142adee00a35d5332b, type: 3}
+    BaseWeight: 5
+    BatchSize: 3
+    IsVariant: 1
+  - Kind: 5
+    Prefab: {fileID: 100000, guid: e7399044b8ae65645adf47f3ab7a0cb3, type: 3}
+    BaseWeight: 5
+    BatchSize: 5
+    IsVariant: 1
+  _variantWeightBonusEverySeconds: 120
+  _variantWeightBonusPerStep: 3
